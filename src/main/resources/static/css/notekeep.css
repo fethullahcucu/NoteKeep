@@ -1,0 +1,97 @@
+/* Page background */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #2e7d32; /* primary green background */
+  color: #0b2b0b;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure html and body take full height */
+html, body { height: 100%; margin: 0; }
+
+/* Navbar height variable */
+:root {
+  --navbar-height: 56px; /* set to your real navbar height if different */
+}
+
+/* Navbar styling */
+.navbar {
+  height: var(--navbar-height);
+  min-height: var(--navbar-height);
+}
+
+/* Wraps and centers the main content vertically/horizontally */
+.center-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* use actual viewport minus navbar height for exact centering */
+  min-height: calc(100vh - var(--navbar-height));
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20px;
+  margin: 0;
+}
+
+/* ensure the centered element is the card (card center = page center) */
+.card-container {
+  width: 100%;
+  max-width: 480px; /* same as .card max-width for consistent sizing */
+  box-sizing: border-box;
+  margin: 0; /* no extra offsets */
+  display: flex;
+  justify-content: center; /* ensure card sits in the horizontal center of this container */
+}
+
+/* Card style that contrasts with green */
+.card {
+  background: #f8f9f4; /* light neutral suitable for green */
+  color: #183617; /* dark green text for contrast */
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  max-width: 480px;
+  width: 100%;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+/* Inputs: soft cream/white suitable with green background */
+.form-control {
+  background: #fffef6; /* soft cream */
+  border: 1px solid #cfe8d8;
+  color: #0b2b0b;
+  padding: 10px 12px;
+  border-radius: 4px;
+}
+
+/* Center form groups and header inside the card */
+.card .card-header,
+.card .form-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Button styling */
+.btn-primary {
+  background-color: #1b5e20;
+  border-color: #134b18;
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 4px;
+}
+
+/* Make labels centered and readable */
+.control-label, .form-label {
+  margin-bottom: 8px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+  .card { padding: 16px; }
+  .center-wrapper { min-height: calc(100vh - 140px); padding: 12px; }
+}

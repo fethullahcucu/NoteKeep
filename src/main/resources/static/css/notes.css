@@ -1,0 +1,57 @@
+/* Base page background and layout (aligns with notekeep.css) */
+html, body { height: 100%; margin: 0; font-family: Arial, sans-serif; }
+body { background: #2e7d32; color: #0b2b0b; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+/* Navbar height */
+:root { --navbar-height: 56px; }
+.navbar { height: var(--navbar-height); min-height: var(--navbar-height); }
+
+/* Centering wrapper */
+.center-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - var(--navbar-height));
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Card container keeps card center aligned (card center == viewport center) */
+.card-container {
+  width: 100%;
+  max-width: 920px; /* wider for notes list */
+  display: flex;
+  justify-content: center;
+  margin: 0;
+}
+
+/* Card visuals */
+.card {
+  background: #f8f9f4;
+  color: #183617;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  width: 100%;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+/* Adjust form controls */
+.form-control { background: #fffef6; border: 1px solid #cfe8d8; color: #0b2b0b; border-radius: 4px; padding: .5rem .75rem; }
+
+/* Layout inside card: make add/search on one column on small screens, two-column on larger */
+.card .card-body .d-flex { gap: 8px; }
+
+/* Notes list styling */
+.note-item { padding: 12px; border-radius: 6px; background: #ffffffee; margin-bottom: 10px; border: 1px solid rgba(0,0,0,0.05); }
+.note-item h6 { margin: 0 0 6px 0; }
+.note-item p { margin: 0 0 6px 0; color: #334; }
+
+/* Buttons */
+.btn-primary { background-color: #1b5e20; border-color: #134b18; color: #fff; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .card-container { max-width: 92%; }
+  .card { padding: 16px; }
+}
