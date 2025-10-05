@@ -1,0 +1,28 @@
+name : Run tests
+on:
+  pull_request:
+    branches:
+        - master
+  push:
+    branches:
+        - master
+jobs:
+  test:
+    runs-on: ubuntu-latest#
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: set up java
+        uses: actions/setup-java@v5
+        with: 
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: run test
+        run: |
+          cd projects/notekeep/
+          .\mvnw.cmd test
+
+
