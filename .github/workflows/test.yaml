@@ -8,7 +8,7 @@ on:
         - master
 jobs:
   test:
-    runs-on: ubuntu-latest#
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -22,7 +22,6 @@ jobs:
 
       - name: run test
         run: |
-          cd projects/notekeep/
-          .\mvnw.cmd test
+          ./mvnw test
 
 
