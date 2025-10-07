@@ -19,14 +19,12 @@ jobs:
         with: 
           java-version: '17'
           distribution: 'temurin'
+      - name: Write Google credentials to file
+        run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" > $GITHUB_WORKSPACE/gcloud.json
+
+      - name: Set env var to file
+        run: echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/gcloud.json" >> $GITHUB_ENV
           
-      - name: Write GCP credentials to file
-        run: printf "%s" "${{ secrets.GCP_CREDENTIALS }}" > gcp-key.json
-      - name: Set GOOGLE_APPLICATION_CREDENTIALS
-        run: echo "GOOGLE_APPLICATION_CREDENTIALS=$PWD/gcp-key.json" >> $GITHUB_ENV
-
-
-
       - name: run test
         run: |
           chmod +x mvnw
