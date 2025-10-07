@@ -21,16 +21,14 @@ jobs:
           distribution: 'temurin'
           
       - name: Write GCP credentials to file
-        run: echo "${{ secrets.GCP_CREDENTIALS }}" > ${{ github.workspace }}/gcp-key.json
-
+        run: printf "%s" "${{ secrets.GCP_CREDENTIALS }}" > gcp-key.json
       - name: Set GOOGLE_APPLICATION_CREDENTIALS
-        run: echo "GOOGLE_APPLICATION_CREDENTIALS=${{ github.workspace }}/gcp-key.json" >> $GITHUB_ENV
+        run: echo "GOOGLE_APPLICATION_CREDENTIALS=$PWD/gcp-key.json" >> $GITHUB_ENV
 
 
 
       - name: run test
         run: |
-          echo "Secret value is $MY_SECRET"
           chmod +x mvnw
           ./mvnw test
 
