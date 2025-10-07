@@ -36,6 +36,6 @@ jobs:
       - name: run test
         run: |
           chmod +x mvnw
-          ./mvnw test
+          sudo ./mvnw test
 
 
