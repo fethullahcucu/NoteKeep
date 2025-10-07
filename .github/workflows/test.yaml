@@ -24,6 +24,14 @@ jobs:
 
       - name: Set env var to file
         run: echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/gcloud.json" >> $GITHUB_ENV
+      - name: Print Google credentials JSON and path
+        run: |
+          echo "GOOGLE_APPLICATION_CREDENTIALS content:"
+          cat $GITHUB_WORKSPACE/gcloud.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS path:"
+          echo $GITHUB_WORKSPACE/gcloud.json
+
+        
           
       - name: run test
         run: |
