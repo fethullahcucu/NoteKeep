@@ -58,6 +58,7 @@ public class UserServiceImpl implements UserService {
         return userDto;
     }
 
+    @Override
     public void updateUserProfile(UserDto userDto) {
         User user = userRepository.findByEmail(userDto.getEmail()).orElse(null);
         if (user == null) return;
@@ -69,5 +70,38 @@ public class UserServiceImpl implements UserService {
             user.setPassword(passwordEncoder.encode(userDto.getPassword()));
         }
         userRepository.save(user);
+    }
+
+    @Override
+    public User syncOAuthUser(String email, String firstName, String lastName) {
+        User user = userRepository.findByEmail(email).orElseGet(() -> {
+            User newUser = new User();
+            newUser.setEmail(email);
+            newUser.setRoles(Set.of(Role.ROLE_USER));
+            return newUser;
+        });
+
+        boolean needsSave = user.getId() == null;
+
+        if (firstName != null && !firstName.isBlank() && !firstName.equals(user.getFirstName())) {
+            user.setFirstName(firstName);
+            needsSave = true;
+        }
+
+        if (lastName != null && !lastName.isBlank() && !lastName.equals(user.getLastName())) {
+            user.setLastName(lastName);
+            needsSave = true;
+        }
+
+        if (user.getRoles() == null || user.getRoles().isEmpty()) {
+            user.setRoles(Set.of(Role.ROLE_USER));
+            needsSave = true;
+        }
+
+        if (needsSave) {
+            userRepository.save(user);
+        }
+
+        return user;
     }
 }

@@ -15,4 +15,6 @@ public interface UserService {
     List<UserDto> findAllUsers();
     
     void updateUserProfile(UserDto userDto);
+
+    User syncOAuthUser(String email, String firstName, String lastName);
 }
