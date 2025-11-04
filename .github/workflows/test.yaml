@@ -2,7 +2,7 @@ name : Run tests
 on:
   pull_request: # Trigger when someone opens a pull request
     branches:
-        - main # Targeting the 'main' branch
+        - try # Targeting the 'main' branch
   push: # Trigger when someone pushes commits
     branches:
         - try # To the 'main' branch
