@@ -34,15 +34,15 @@ jobs: # here is what actions will do
           chmod +x mvnw 
           ./mvnw test
   push_new_image:
-    runs_on: ubuntu:latest #Use the latest Ubuntu runner 
+    runs-on: ubuntu:latest #Use the latest Ubuntu runner 
     needs: 
       - test # make sure this job is done before move on
     if: github.ref == 'refs/heads/main' #if you are at main branch,
     permissions: # give permissions below
-    contents: read
-    packages: write
-    attestations: write
-    id-token: write
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
     steps: #follow steps below.
       - name: Checkout code # Mame of the step
         uses: actions/checkout@v4 # Fetch the latest code from the repository
