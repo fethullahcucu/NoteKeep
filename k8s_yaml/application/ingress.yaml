@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-metada-name-notekeep
+  namespace: common-metadata-namespace
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service: # The backend is a Kubernetes Service.
+            name: metadata-notekeep-svc
+            port:
+              number: 80

@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: metadata-name-job
+  namespace: common-metadata-namespace
+spec:
+  template:
+    spec:
+      containers:
+      - image: ghcr.io/fethullahcucu/notekeep:latest
+        imagePullPolicy: Always
+        name: api
+        command: ["/app/entrypoint.sh"] # I need entrypoint.sh - done
+        env:
+          - name: MONGODB_URI
+            value: mongodb://service-metada-name-mongodb.mongodb.svc.cluster.local:27017/NoteKeep
+          - name: SPRING_DATA_MONGODB_DATABASE # change these
+            value: NoteKeep
+          - name: DATABASE_HOST
+            value: statefulset-metadata-name-mongodb-0.service-metada-name-mongodb.mongodb.svc.cluster.local # <statefulset-name>-0.<service>.<namespace>.svc.<cluster-domain>
+          - name: DEVELOPMENT_MODE
+            value: "false"
+      restartPolicy: Never
+      #imagePullSecrets: 
+      #- name: ghcr-token
