@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-metadata-name-notekeep
+  namespace: common-metadata-namespace
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      service: deployment-notekeep-template-metadata-label-service # select the temple from below
+  template:
+    metadata:
+      labels:
+        service: deployment-notekeep-template-metadata-label-service
+    spec:
+      containers:
+      - image: ghcr.io/fethullahcucu/notekeep:latest # change later
+        imagePullPolicy: Always
+        name: api  # change later
+        env:
+          - name: MONGODB_URI
+            value: mongodb://service-metada-name-mongodb.mongodb.svc.cluster.local:27017/NoteKeep
+        

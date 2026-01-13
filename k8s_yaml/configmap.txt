@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-app-config
+data:
+  # Use a configmap for only envs
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+
+  SPRING_DATA_MONGODB_URI: "mongodb://db:27017/NoteKeep"
+  MONGO_INITDB_DATABASE: "NoteKeep"
+
+
+  # For mounted files
+  app.conf: |
+    [settings]
+    debug = false
+    log_level = INFO

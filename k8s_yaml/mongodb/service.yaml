@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-metada-name-mongodb
+  namespace: mongodb
+spec:
+  clusterIP: None  # Headless service 
+  selector:
+    app: statefulset-spec-servicename-mongodb
+  ports:
+    - port: 27017
+      name: mongodb
+  
