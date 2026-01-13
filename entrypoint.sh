@@ -6,8 +6,6 @@ apt-get update
 apt-get install -y --no-install-recommends netcat-openbsd
 rm -rf /var/lib/apt/lists/*
 
-echo "Database Starting...."
-
 while ! nc -z service-metada-name-mongodb.mongodb.svc.cluster.local 27017; do
     sleep 1
 done
