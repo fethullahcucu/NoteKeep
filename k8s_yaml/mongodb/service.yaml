@@ -6,7 +6,7 @@ metadata:
 spec:
   clusterIP: None  # Headless service 
   selector:
-    app: statefulset-spec-servicename-mongodb
+    app: stateful-spec-template-app-mongodb
   ports:
     - port: 27017
       name: mongodb

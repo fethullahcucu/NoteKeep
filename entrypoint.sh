@@ -11,4 +11,3 @@ while ! nc -z service-metada-name-mongodb.mongodb.svc.cluster.local 27017; do
 done
 echo "Database Ready...."
 exec java -jar /app/app.jar "$@"
-    

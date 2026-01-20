@@ -6,6 +6,7 @@ import com.example.UserRegistration.Service.UserService;
 import com.example.NoteKeep.DetectText;
 import org.springframework.security.core.Authentication;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +37,9 @@ public class NoteController {
 
     @Autowired
     private UserService userService;
+
+    @Value("${notekeep.ocr.enabled:true}")
+    private boolean ocrEnabled;
 
     @GetMapping
     public String getNotes(@RequestParam(value = "search", required = false) String search,
@@ -167,6 +171,10 @@ public class NoteController {
     @PostMapping(value = "/detect")
     @ResponseBody
     public String detectTextFromImage(@RequestParam("file") MultipartFile file, Authentication authentication) {
+        if (!ocrEnabled) {
+            logger.info("OCR disabled; skipping text detection");
+            return "";
+        }
         if (file == null || file.isEmpty()) return "";
         try {
             byte[] bytes = file.getBytes();

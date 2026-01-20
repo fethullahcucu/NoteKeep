@@ -20,4 +20,8 @@ spec:
         env:
           - name: MONGODB_URI
             value: mongodb://service-metada-name-mongodb.mongodb.svc.cluster.local:27017/NoteKeep
-        
+          - name: DATABASE_HOST
+            value: service-metada-name-mongodb.mongodb.svc.cluster.local
+          - name: DATABASE_PORT
+            value: "27017"
+
