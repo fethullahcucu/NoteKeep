@@ -2,10 +2,10 @@ name : Run tests
 on:
   pull_request: # Trigger when someone opens a pull request
     branches:
-        - try # Targeting the 'main' branch
+        - main # Targeting the 'main' branch
   push: # Trigger when someone pushes commits
     branches:
-        - try- # To the 'main' branch
+        - main- # To the 'main' branch
 jobs: # here is what actions will do
   test: # Define the test job
     runs-on: ubuntu-latest # Use the latest Ubuntu runner
