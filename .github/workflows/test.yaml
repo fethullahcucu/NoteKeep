@@ -34,7 +34,7 @@ jobs: # here is what actions will do
           chmod +x mvnw 
           ./mvnw test
   push_new_image:
-    runs-on: ubuntu:latest #Use the latest Ubuntu runner 
+    runs-on: ubuntu-latest #Use the latest Ubuntu runner 
     needs: 
       - test # make sure this job is done before move on
     if: github.ref == 'refs/heads/main' #if you are at main branch,
