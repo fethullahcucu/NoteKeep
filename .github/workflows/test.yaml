@@ -5,7 +5,7 @@ on:
         - main # Targeting the 'main' branch
   push: # Trigger when someone pushes commits
     branches:
-        - main- # To the 'main' branch
+        - main # To the 'main' branch
 jobs: # here is what actions will do
   test: # Define the test job
     runs-on: ubuntu-latest # Use the latest Ubuntu runner
