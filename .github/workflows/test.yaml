@@ -62,7 +62,10 @@ jobs: # here is what actions will do
           images: ghcr.io/fethullahcucu/notekeep #Declares the base image name to tag. The action will produce outputs like:
                                                  #tags (e.g., ghcr.io/fethullahcucu/notekeep:sha-<shortsha>, :main, :v1.2.3, depending on event/inputs)
                                                  #labels (standard org.opencontainers.image.* labels)
-
+      - name: Build jar # build a jar without test 
+        run: |
+          chmod +x mvnw
+          ./mvnw -DskipTests package 
       - name: Build and push
         uses: docker/build-push-action@v6 
         with:
