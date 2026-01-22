@@ -43,14 +43,14 @@ jobs: # here is what actions will do
       packages: write
       attestations: write
       id-token: write
-    env:
-          GHCR_REGISTRY: ${{ vars.GHCR_REGISTRY }}
     steps: #follow steps below.
       - name: Checkout code # Mame of the step
         uses: actions/checkout@v4 # Fetch the latest code from the repository
       
       - name: Login to GHCR
         uses: docker/login-action@v3 #login to docker
+        env:
+          GHCR_REGISTRY: ${{ vars.GHCR_REGISTRY }}
         with:
           registry: ${{env.GHCR_REGISTRY}} # with ghcr.io (from repo env)
           username: ${{ github.actor }} # username of who push the workflow
@@ -62,12 +62,6 @@ jobs: # here is what actions will do
           images: ghcr.io/fethullahcucu/notekeep #Declares the base image name to tag. The action will produce outputs like:
                                                  #tags (e.g., ghcr.io/fethullahcucu/notekeep:sha-<shortsha>, :main, :v1.2.3, depending on event/inputs)
                                                  #labels (standard org.opencontainers.image.* labels)
-
-      - name: Build jar # build a jar without test 
-        run: |
-          chmod +x mvnw
-          ./mvnw -DskipTests package 
-
 
       - name: Build and push
         uses: docker/build-push-action@v6 
