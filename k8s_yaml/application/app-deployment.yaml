@@ -24,4 +24,6 @@ spec:
             value: service-metada-name-mongodb.mongodb.svc.cluster.local
           - name: DATABASE_PORT
             value: "27017"
+          - name: SPRING_CLOUD_GCP_PARAMETERMANAGER_ENABLED
+            value: "false"
 

@@ -7,7 +7,7 @@ spec:
   template:
     spec:
       containers:
-      - image: ghcr.io/fethullahcucu/notekeep:latest
+      - image: ghcr.io/fethullahcucu/notekeep:main
         imagePullPolicy: Always
         name: api
         command: ["/app/entrypoint.sh"] # I need entrypoint.sh - done
