@@ -49,6 +49,8 @@ jobs: # here is what actions will do
       
       - name: Login to GHCR
         uses: docker/login-action@v3 #login to docker
+        env:
+          GHCR_REGISTRY: ${{ vars.GHCR_REGISTRY }}
         with:
           registry: ${{env.GHCR_REGISTRY}} # with ghcr.io (from repo env)
           username: ${{ github.actor }} # username of who push the workflow
