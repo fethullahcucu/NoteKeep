@@ -14,7 +14,7 @@ spec:
         service: deployment-notekeep-template-metadata-label-service
     spec:
       containers:
-      - image: ghcr.io/fethullahcucu/notekeep:latest # change later
+      - image: ghcr.io/fethullahcucu/notekeep:main # change later
         imagePullPolicy: Always
         name: api  # change later
         env:
