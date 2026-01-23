@@ -1,5 +1,5 @@
 package com.example.NoteKeep;
-
+/* 
 import com.google.cloud.vision.v1.AnnotateImageRequest;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.BatchAnnotateImagesResponse;
@@ -57,3 +57,4 @@ public class DetectText {
         return out.toString();
     }
 }
+    */

@@ -1,30 +1,30 @@
 package com.example.NoteKeep.Controller;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 import com.example.NoteKeep.Model.Note;
 import com.example.NoteKeep.Service.NoteService;
 import com.example.UserRegistration.Service.UserService;
-import com.example.NoteKeep.DetectText;
-import org.springframework.security.core.Authentication;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Collections;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.io.IOException;
-
-import java.util.Set;
-import java.util.LinkedHashSet;
-import java.util.Optional;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/notes")
@@ -38,8 +38,8 @@ public class NoteController {
     @Autowired
     private UserService userService;
 
-    @Value("${notekeep.ocr.enabled:true}")
-    private boolean ocrEnabled;
+    //1@Value("${notekeep.ocr.enabled:true}")
+    //1private boolean ocrEnabled;
 
     @GetMapping
     public String getNotes(@RequestParam(value = "search", required = false) String search,
@@ -167,14 +167,14 @@ public class NoteController {
         }
         return "redirect:/notes";
     }
-
+    /* 
     @PostMapping(value = "/detect")
     @ResponseBody
     public String detectTextFromImage(@RequestParam("file") MultipartFile file, Authentication authentication) {
-        if (!ocrEnabled) {
-            logger.info("OCR disabled; skipping text detection");
-            return "";
-        }
+        //1 if (!ocrEnabled) {
+        //1     logger.info("OCR disabled; skipping text detection");
+        //1     return "";
+        //1 }
         if (file == null || file.isEmpty()) return "";
         try {
             byte[] bytes = file.getBytes();
@@ -183,6 +183,6 @@ public class NoteController {
         } catch (IOException e) {
             logger.error("Text detection failed", e);
             return "";
-        }
-    }
+        } 
+    } */
 }
