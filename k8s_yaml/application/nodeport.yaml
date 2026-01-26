@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: metadata-notekeep-nodeport
+  namespace: common-metadata-namespace
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8000
+    nodePort: 30080
+  selector:
+    service: deployment-notekeep-template-metadata-label-service # the word service as a label key, not as a Kubernetes Service object
+  type: NodePort
