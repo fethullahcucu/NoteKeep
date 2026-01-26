@@ -21,7 +21,7 @@ jobs: # here is what actions will do
           distribution: 'temurin' # Use the Temurin JDK distribution
       - name: Prepare GCP credentials
         env: #if you want to set env 
-          MONGODB_URI : mongodb://service-metada-name-mongodb.mongodb.svc.cluster.local:27017/NoteKeep
+          MONGODB_URI : mongodb://localhost:27017/NoteKeep
           GCP_SERVICE_ACCOUNT_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }} # Load the GCP service account key from GitHub Secrets
           GOOGLE_CLIENT_ID: ${{env.GOOGLE_CLIENT_SECRET}}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
