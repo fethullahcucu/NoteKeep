@@ -9,7 +9,10 @@ on:
 jobs: # here is what actions will do
   test: # Define the test job
     runs-on: ubuntu-latest # Use the latest Ubuntu runner
-
+    env: #if you want to set env 
+      MONGODB_URI : mongodb://localhost:27017/NoteKeep
+      GOOGLE_CLIENT_ID: ${{vars.GOOGLE_CLIENT_ID}}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
     steps: # steps list
       - name: Checkout code # Mame of the step
         uses: actions/checkout@v4 # Fetch the latest code from the repository
@@ -21,10 +24,7 @@ jobs: # here is what actions will do
           distribution: 'temurin' # Use the Temurin JDK distribution
       - name: Prepare GCP credentials
         env: #if you want to set env 
-          MONGODB_URI : mongodb://localhost:27017/NoteKeep
           GCP_SERVICE_ACCOUNT_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }} # Load the GCP service account key from GitHub Secrets
-          GOOGLE_CLIENT_ID: ${{env.GOOGLE_CLIENT_SECRET}}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: | # Write the service account key to a temporary JSON file and Set the environment variable for authentication
           printf '%s' "$GCP_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/gcloud.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/gcloud.json" >> "$GITHUB_ENV"
