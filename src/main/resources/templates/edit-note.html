@@ -14,6 +14,10 @@
       <form th:action="@{/logout}" method="post" class="d-inline">
         <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
       </form>
+      <span class="navbar-text text-light small ms-3">
+        Pod:
+        <span class="badge bg-warning text-dark" th:text="${podName}">pod-name</span>
+      </span>
     </div>
   </div>
 </nav>
