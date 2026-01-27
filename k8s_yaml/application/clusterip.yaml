@@ -8,7 +8,7 @@ spec:
   - name: http
     port: 80
     protocol: TCP
-    targetPort: 8000
+    targetPort: 8080
   selector:
     service: deployment-notekeep-template-metadata-label-service # the word service as a label key, not as a Kubernetes Service object
   type: ClusterIP
