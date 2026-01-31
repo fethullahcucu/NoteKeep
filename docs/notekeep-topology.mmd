@@ -1,0 +1,39 @@
+flowchart LR
+  %% NoteKeep topology derived from repo YAMLs (filenames only)
+
+  User([User / Browser])
+
+  subgraph ns_app["Namespace: common-metadata-namespace"]
+    LB["Service metadata-notekeep-loadbalancer\n(loadbalancer.yaml)\nport 80 -> targetPort 8080"]
+    NP["Service metadata-notekeep-nodeport\n(nodeport.yaml)\nport 80 -> targetPort 8080\nnodePort 30080"]
+    ING["Ingress ingress-metada-name-notekeep\n(ingress.yaml)\n/ -> svc metadata-notekeep-svc:80"]
+    CIP["Service metadata-notekeep-svc\n(clusterip.yaml)\nport 80 -> targetPort 8080"]
+    DEP["Deployment deployment-metadata-name-notekeep\n(app-deployment.yaml)\nreplicas 2\ncontainerPort 8080"]
+    POD["Pod template\nlabels: service=deployment-notekeep-template-metadata-label-service"]
+    JOB["Job metadata-name-job\n(job.yaml)\ncommand /app/entrypoint.sh"]
+    APPSEC["Secret (empty file)\n(secrets.yaml)"]
+  end
+
+  subgraph ns_db["Namespace: mongodb"]
+    NS["Namespace mongodb\n(namespace.yaml)"]
+    PVC["PVC mongodb-data-postgres-0\n(pvc.yaml)\n5Gi RWO"]
+    MSVC["Headless Service service-metada-name-mongodb\n(service.yaml)\nport 27017"]
+    MDB["StatefulSet statefulset-metadata-name-mongodb\n(statefulset.yaml)\ncontainerPort 27017"]
+  end
+
+  %% External access paths
+  User -->|HTTP 80| LB --> CIP
+  User -->|HTTP :30080| NP --> CIP
+  User -->|HTTP /| ING --> CIP
+
+  %% Service to workload (label/selector)
+  CIP -->|selector service=deployment-notekeep-template-metadata-label-service| DEP
+  DEP -->|template label service=deployment-notekeep-template-metadata-label-service| POD
+
+  %% DB wiring (label/selector + PVC)
+  MSVC -->|selector app=stateful-spec-template-app-mongodb| MDB
+  MDB -->|volume claim| PVC
+
+  %% App to DB
+  POD -->|mongodb://service-metada-name-mongodb.mongodb.svc.cluster.local:27017/NoteKeep| MSVC
+  JOB -->|same mongo uri| MSVC
