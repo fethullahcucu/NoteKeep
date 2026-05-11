@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteKeep - Edit User</title>
+    <link rel="stylesheet" th:href="@{/css/notekeep-theme.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="container-fluid">
+        <a class="navbar-brand" th:href="@{/notes}">NoteKeep</a>
+        <div class="navbar-collapse">
+            <ul class="navbar-nav ms-auto">
+                <li>
+                    <a class="nav-link" th:href="@{/admin/users}">Back to Users</a>
+                </li>
+                <li>
+                    <form th:action="@{/logout}" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-secondary btn-sm">Logout</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="center-wrapper">
+    <div class="card-container">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="text-center">Edit User</h2>
+            </div>
+            <div class="card-body">
+                <form th:action="@{|/admin/users/${user.id}/update|}" method="post">
+                    <div class="form-group">
+                        <label class="form-label">User ID</label>
+                        <input type="text" class="form-control" th:value="${user.id}" disabled>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">First Name</label>
+                        <input type="text" class="form-control" name="firstName" th:value="${user.firstName}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" class="form-control" name="lastName" th:value="${user.lastName}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email" th:value="${user.email}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Roles</label>
+                        <div style="margin-top: 0.5rem;">
+                            <span th:each="role : ${user.roles}" class="badge bg-info" th:text="${role}" style="margin-right: 0.5rem;"></span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+                        <button type="submit" class="btn btn-primary">Update User</button>
+                        <a th:href="@{/admin/users}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -12,9 +12,13 @@ public interface UserService {
 
     User findUserByEmail(String email);
 
+    User findUserById(String userId);
+
     List<UserDto> findAllUsers();
-    
+
     void updateUserProfile(UserDto userDto);
 
-    User syncOAuthUser(String email, String firstName, String lastName);
+    void updateUserById(String userId, String firstName, String lastName, String email);
+
+    void deleteUserById(String userId);
 }

@@ -1,8 +1,10 @@
 package com.example.NoteKeep.Controller;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -24,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import com.example.NoteKeep.Model.Note;
 import com.example.NoteKeep.Service.NoteService;
+import com.example.UserRegistration.Dto.UserDto;
+import com.example.UserRegistration.Model.Role;
 import com.example.UserRegistration.Service.UserService;
 
 @Controller
@@ -44,13 +48,25 @@ public class NoteController {
     @GetMapping
     public String getNotes(@RequestParam(value = "search", required = false) String search,
                            @RequestParam(value = "tags", required = false) String tagsParam,
+                           @RequestParam(value = "filterUserId", required = false) String filterUserId,
                            Model model, Authentication authentication) {
         List<Note> notes = new ArrayList<>();
         String email = authentication.getName();
         com.example.UserRegistration.Model.User user = userService.findUserByEmail(email);
+        boolean admin = isAdmin(user);
 
         if (user != null && user.getId() != null) {
-            if (search != null && !search.isBlank()) {
+            if (admin && filterUserId != null && !filterUserId.isBlank()) {
+                if (search != null && !search.isBlank()) {
+                    notes = noteService.searchNotes(search, filterUserId);
+                } else {
+                    notes = noteService.getNotesForUser(filterUserId);
+                }
+            } else if (admin && search != null && !search.isBlank()) {
+                notes = noteService.searchAllNotes(search);
+            } else if (admin) {
+                notes = noteService.getAllNotes();
+            } else if (search != null && !search.isBlank()) {
                 notes = noteService.searchNotes(search, user.getId());
             } else {
                 notes = noteService.getNotesForUser(user.getId());
@@ -88,10 +104,29 @@ public class NoteController {
                     .collect(Collectors.toList());
         }
 
+        Map<String, com.example.UserRegistration.Model.User> userMap = new HashMap<>();
+        List<UserDto> allUsers = new ArrayList<>();
+        if (admin) {
+            for (Note note : notes) {
+                if (note.getUserId() != null && !userMap.containsKey(note.getUserId())) {
+                    com.example.UserRegistration.Model.User noteUser = userService.findUserById(note.getUserId());
+                    if (noteUser != null) {
+                        userMap.put(note.getUserId(), noteUser);
+                    }
+                }
+            }
+            allUsers = userService.findAllUsers();
+        }
+
         model.addAttribute("notes", notes);
         model.addAttribute("search", search);
         model.addAttribute("hashtags", hashtags);
         model.addAttribute("selectedTags", selectedTags);
+        model.addAttribute("isAdmin", admin);
+        model.addAttribute("currentUserId", user == null ? null : user.getId());
+        model.addAttribute("userMap", userMap);
+        model.addAttribute("allUsers", allUsers);
+        model.addAttribute("selectedUserId", filterUserId);
         return "notes";
     }
 
@@ -101,6 +136,10 @@ public class NoteController {
         com.example.UserRegistration.Model.User user = userService.findUserByEmail(email);
         if (user == null || user.getId() == null) {
             logger.warn("Attempt to add note without a valid user; principal={} ", email);
+            return "redirect:/notes";
+        }
+        if (isAdmin(user)) {
+            logger.warn("Admin user {} attempted to create a note", email);
             return "redirect:/notes";
         }
         note.setUserId(user.getId());
@@ -117,13 +156,17 @@ public class NoteController {
             return "redirect:/notes";
         }
 
-        Optional<Note> note = noteService.getNoteByIdForUser(noteId, user.getId());
+        boolean admin = isAdmin(user);
+        Optional<Note> note = admin
+                ? noteService.getNoteById(noteId)
+                : noteService.getNoteByIdForUser(noteId, user.getId());
         if (note.isEmpty()) {
             logger.warn("Edit denied: note not found or does not belong to user. noteId={}, userId={}", noteId, user.getId());
             return "redirect:/notes";
         }
 
         model.addAttribute("note", note.get());
+        model.addAttribute("isAdmin", admin);
         return "edit-note";
     }
 
@@ -140,11 +183,14 @@ public class NoteController {
             return "redirect:/notes";
         }
 
-        boolean updated = noteService.updateNoteForUser(noteId, user.getId(), title, content);
+        boolean admin = isAdmin(user);
+        boolean updated = admin
+                ? noteService.updateNoteAsAdmin(noteId, title, content)
+                : noteService.updateNoteForUser(noteId, user.getId(), title, content);
         if (!updated) {
             logger.warn("Update denied: note not found or does not belong to user. noteId={}, userId={}", noteId, user.getId());
         } else {
-            logger.info("Note updated: id={} by user={}", noteId, user.getId());
+            logger.info("Note updated: id={} by user={} admin={}", noteId, user.getId(), admin);
         }
         return "redirect:/notes"; 
     }
@@ -166,6 +212,10 @@ public class NoteController {
             logger.warn("Delete denied: note not found or does not belong to user. noteId={}, userId={}", noteId, user.getId());
         }
         return "redirect:/notes";
+    }
+
+    private boolean isAdmin(com.example.UserRegistration.Model.User user) {
+        return user != null && user.getRoles() != null && user.getRoles().contains(Role.ROLE_ADMIN);
     }
     /* 
     @PostMapping(value = "/detect")

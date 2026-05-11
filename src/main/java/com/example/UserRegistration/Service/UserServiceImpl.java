@@ -5,6 +5,7 @@ import com.example.UserRegistration.Dto.UserDto;
 import com.example.UserRegistration.Model.Role;
 import com.example.UserRegistration.Model.User;
 import com.example.UserRegistration.Repository.UserRepository;
+import com.example.NoteKeep.Repository.NoteRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -16,11 +17,14 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final NoteRepository noteRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UserServiceImpl(UserRepository userRepository,
+                           NoteRepository noteRepository,
                            PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.noteRepository = noteRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -42,6 +46,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public User findUserById(String userId) {
+        return userRepository.findById(userId).orElse(null);
+    }
+
+    @Override
     public List<UserDto> findAllUsers() {
         List<User> users = userRepository.findAll();
         return users.stream()
@@ -51,6 +60,7 @@ public class UserServiceImpl implements UserService {
 
     private UserDto mapToUserDto(User user) {
         UserDto userDto = new UserDto();
+        userDto.setId(user.getId());
         userDto.setFirstName(user.getFirstName());
         userDto.setLastName(user.getLastName());
         userDto.setEmail(user.getEmail());
@@ -65,7 +75,7 @@ public class UserServiceImpl implements UserService {
 
         user.setFirstName(userDto.getFirstName());
         user.setLastName(userDto.getLastName());
-        
+
         if (userDto.getPassword() != null && !userDto.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(userDto.getPassword()));
         }
@@ -73,35 +83,30 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User syncOAuthUser(String email, String firstName, String lastName) {
-        User user = userRepository.findByEmail(email).orElseGet(() -> {
-            User newUser = new User();
-            newUser.setEmail(email);
-            newUser.setRoles(Set.of(Role.ROLE_USER));
-            return newUser;
-        });
+    public void updateUserById(String userId, String firstName, String lastName, String email) {
+        if (userId == null || userId.isBlank()) return;
 
-        boolean needsSave = user.getId() == null;
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) return;
 
-        if (firstName != null && !firstName.isBlank() && !firstName.equals(user.getFirstName())) {
+        if (firstName != null && !firstName.isBlank()) {
             user.setFirstName(firstName);
-            needsSave = true;
         }
-
-        if (lastName != null && !lastName.isBlank() && !lastName.equals(user.getLastName())) {
+        if (lastName != null && !lastName.isBlank()) {
             user.setLastName(lastName);
-            needsSave = true;
         }
-
-        if (user.getRoles() == null || user.getRoles().isEmpty()) {
-            user.setRoles(Set.of(Role.ROLE_USER));
-            needsSave = true;
+        if (email != null && !email.isBlank()) {
+            user.setEmail(email);
         }
-
-        if (needsSave) {
-            userRepository.save(user);
-        }
-
-        return user;
+        userRepository.save(user);
     }
+
+    @Override
+    public void deleteUserById(String userId) {
+        if (userId == null || userId.isBlank()) return;
+
+        noteRepository.deleteAll(noteRepository.findByUserId(userId));
+        userRepository.deleteById(userId);
+    }
+
 }

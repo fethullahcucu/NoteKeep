@@ -1,114 +1,61 @@
 <!DOCTYPE html>
-<html lang="en"
-    xmlns:th="http://www.thymeleaf.org"
->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Registration and Login System</title>
-    
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
-          rel="stylesheet"
-          integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
-          crossorigin="anonymous">
-   
-    <link rel="stylesheet" th:href="@{/css/notekeep.css}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteKeep - Login</title>
+    <link rel="stylesheet" th:href="@{/css/notekeep-theme.css}">
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar">
     <div class="container-fluid">
-        <a class="navbar-brand"
-           th:href="${#httpServletRequest != null and #httpServletRequest.remoteUser != null} ? @{/notes} : @{/notekeep}">
-            Registration and Login System
+        <a class="navbar-brand" th:href="${#httpServletRequest != null and #httpServletRequest.remoteUser != null} ? @{/notes} : @{/notekeep}">
+            NoteKeep
         </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                
-            </ul>
-        </div>
-        <div class="d-flex align-items-center ms-auto">
-            <span class="navbar-text text-light small">
-                Pod:
-                <span class="badge bg-warning text-dark" th:text="${podName}">pod-name</span>
-            </span>
-        </div>
+        <span class="navbar-text">
+            Pod: <span class="badge bg-warning" th:text="${podName}">pod-name</span>
+        </span>
     </div>
 </nav>
 
 <div class="center-wrapper">
-  
-  <div class="card-container">
-    <div th:if="${param.error}">
-        <div class="alert alert-danger">Invalid Email or Password</div>
-    </div>
-    <div th:if="${param.logout}">
-        <div class="alert alert-success"> You have been logged out.</div>
-    </div>
-    <div th:if="${param.oauthError}">
-        <div class="alert alert-danger">Google sign-in failed. Please try again with a different account.</div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <h2 class="text-center">Login Form</h2>
+    <div class="card-container">
+        <div th:if="${param.error}" class="alert alert-danger">
+            Invalid Email or Password
         </div>
-        <div class="card-body">
-            <form
-                method="post"
-                role="form"
-                th:action="@{/notekeep}"
-                class="form-horizontal"
-            >
-                <div class="form-group mb-3">
-                    <label class="control-label"> Email</label>
-                    <input
-                        type="text"
-                        id="email"
-                        name="email"
-                        class="form-control"
-                        placeholder="Enter email address"
-                    />
-                </div>
+        <div th:if="${param.logout}" class="alert alert-success">
+            You have been logged out.
+        </div>
 
-                <div class="form-group mb-3">
-                    <label class="control-label"> Password</label>
-                    <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            class="form-control"
-                            placeholder="Enter password"
-                    />
-                </div>
-                <div class="form-group mb-3 d-flex align-items-center gap-2">
-                    <button type="submit" class="btn btn-primary flex-grow-1">Submit</button>
-                    <a class="btn btn-outline-secondary d-flex align-items-center justify-content-center"
-                       style="width: 56px; height: 40px;"
-                       th:href="@{/oauth2/authorization/google}"
-                       aria-label="Sign in with Google">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 533.5 544.3" width="20" height="20">
-                            <path fill="#4285F4" d="M533.5 278.4c0-17.4-1.6-34.1-4.7-50.2H272v95.0h146.9c-6.3 34-25.1 62.8-53.5 82.1v68.3h86.5c50.6-46.6 81.6-115.3 81.6-195.2z"/>
-                            <path fill="#34A853" d="M272 544.3c72.9 0 134.2-24.1 178.9-65.7l-86.5-68.3c-24 16.1-54.7 25.5-92.4 25.5-70.9 0-131-47.9-152.5-112.3H31.2v70.6c44.6 88.4 136 149.9 240.8 149.9z"/>
-                            <path fill="#FBBC05" d="M119.5 323.5c-10.9-32.6-10.9-68.0 0-100.6V152.3H31.2c-23.8 47.6-31.5 103.7-20.4 158.4s39.4 104.1 79.2 140.7l91.1-70.6z"/>
-                            <path fill="#EA4335" d="M272 107.7c39.6-.6 77.7 14.2 106.6 40.9l79.6-79.6C403.7 24.5 340.5-1 272 0 167.2 0 75.8 61.5 31.2 149.9l88.3 70.6C141 155.9 201.1 108 272 107.7z"/>
-                        </svg>
-                    </a>
-                </div>
-                <div class="form-group">
-                    <span> Not registered ?
-                        <a th:href="@{/register}">Register/Signup here</a>
-                    </span>
-                </div>
-            </form>
+        <div class="card">
+            <div class="card-header">
+                <h2 class="text-center">Login</h2>
+            </div>
+            <div class="card-body">
+                <form method="post" th:action="@{/notekeep}">
+                    <div class="form-group">
+                        <label class="control-label">Email</label>
+                        <input type="text" id="email" name="email" class="form-control" placeholder="Enter email address" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="control-label">Password</label>
+                        <input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required />
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary w-100">Sign In</button>
+                    </div>
+
+                    <div class="form-group text-center">
+                        <span style="color: var(--text-muted);">Not registered?
+                            <a th:href="@{/register}">Create account</a>
+                        </span>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-  </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-cVKIPhGmHRQs6rv8f1Qm0Q4rGxQ5Y3l5x1Zr+3oGmYl5Yk5n0Q5K5R5v5Q5K5R5v"
-        crossorigin="anonymous"></script>
 </body>
 </html>

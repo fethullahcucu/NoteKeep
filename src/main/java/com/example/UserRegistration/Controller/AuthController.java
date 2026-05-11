@@ -2,6 +2,7 @@ package com.example.UserRegistration.Controller;
 
 import com.example.UserRegistration.Dto.UserDto;
 import com.example.UserRegistration.Model.User;
+import com.example.UserRegistration.Model.Role;
 import com.example.UserRegistration.Service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -9,6 +10,8 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -20,7 +23,10 @@ public class AuthController {
 
 
     @GetMapping("/notekeep")
-    public String login() {
+    public String login(Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            return "redirect:/notes";
+        }
         return "notekeep";
     }
 
@@ -33,7 +39,10 @@ public class AuthController {
 
     
     @GetMapping("/register")
-    public String showRegistrationForm(Model model) {
+    public String showRegistrationForm(Model model, Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            return "redirect:/notes";
+        }
         UserDto user = new UserDto();
         model.addAttribute("user", user);
         return "register";
@@ -61,12 +70,62 @@ public class AuthController {
     }
 
     
-    @GetMapping("/users")
-    public String users(Model model) {
+    @GetMapping("/admin/users")
+    public String adminUsers(Model model, Authentication authentication) {
+        User currentUser = userService.findUserByEmail(authentication.getName());
+        if (currentUser == null || !isAdmin(currentUser)) {
+            return "redirect:/notes";
+        }
+
         List<UserDto> users = userService.findAllUsers();
         model.addAttribute("users", users);
-        return "users";
+        return "admin-users";
     }
 
-    
+    @GetMapping("/admin/users/{userId}/edit")
+    public String adminEditUser(@PathVariable String userId, Model model, Authentication authentication) {
+        User currentUser = userService.findUserByEmail(authentication.getName());
+        if (currentUser == null || !isAdmin(currentUser)) {
+            return "redirect:/notes";
+        }
+
+        User user = userService.findUserById(userId);
+        if (user == null) {
+            return "redirect:/admin/users";
+        }
+
+        model.addAttribute("user", user);
+        return "admin-edit-user";
+    }
+
+    @PostMapping("/admin/users/{userId}/update")
+    public String adminUpdateUser(@PathVariable String userId,
+                                   @RequestParam String firstName,
+                                   @RequestParam String lastName,
+                                   @RequestParam String email,
+                                   Authentication authentication) {
+        User currentUser = userService.findUserByEmail(authentication.getName());
+        if (currentUser == null || !isAdmin(currentUser)) {
+            return "redirect:/notes";
+        }
+
+        userService.updateUserById(userId, firstName, lastName, email);
+        return "redirect:/admin/users";
+    }
+
+    @PostMapping("/admin/users/{userId}/delete")
+    public String adminDeleteUser(@PathVariable String userId,
+                                   Authentication authentication) {
+        User currentUser = userService.findUserByEmail(authentication.getName());
+        if (currentUser == null || !isAdmin(currentUser)) {
+            return "redirect:/notes";
+        }
+
+        userService.deleteUserById(userId);
+        return "redirect:/admin/users";
+    }
+
+    private boolean isAdmin(User user) {
+        return user != null && user.getRoles() != null && user.getRoles().contains(Role.ROLE_ADMIN);
+    }
 }

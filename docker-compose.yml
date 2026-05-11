@@ -1,26 +1,13 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/fethullahcucu/notekeep:main
     ports:
       - 8080:8080
     environment:
-      SPRING_DATA_MONGODB_URI: mongodb://db:27017/NoteKeep
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google_vision_api
-    secrets:
-      - google_vision_api
-    depends_on:
-      - db
-  db:
-    image: mongo:7 
-    environment:
-      MONGO_INITDB_DATABASE: NoteKeep
-    volumes:
-      - mongo_data:/data/db
-secrets:
-  google_vision_api:
-    file: C:\Users\fethu\Desktop\NewBackup\rising-memory-471013-a3-f19bfdfd6cc3.json
-volumes:
-  mongo_data:
+      SPRING_DATA_MONGODB_URI: mongodb://host.docker.internal:27017/NoteKeep
+      # GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google_vision_api
+    # secrets:
+    #   - google_vision_api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 

@@ -1,0 +1,15 @@
+services:
+  notekeep:
+    image: ghcr.io/fethullahcucu/notekeep:main
+    # Override the K8s-specific entrypoint that waits for a cluster hostname
+    entrypoint: ["java", "-jar", "/app/app.jar"]
+    ports:
+      - "8080:8080"
+    environment:
+      # MongoDB is exposed to host at localhost:27017 via docker-compose
+      SPRING_DATA_MONGODB_URI: mongodb://host.docker.internal:27017/NoteKeep
+      GOOGLE_CLIENT_ID: ${NOTEKEEP_GOOGLE_CLIENT_ID:-placeholder_id}
+      GOOGLE_CLIENT_SECRET: ${NOTEKEEP_GOOGLE_CLIENT_SECRET:-placeholder_secret}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

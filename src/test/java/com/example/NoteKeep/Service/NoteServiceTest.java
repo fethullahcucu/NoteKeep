@@ -45,6 +45,18 @@ class NoteServiceTest {
     }
 
     @Test
+    void getAllNotesDelegatesToRepository() {
+        Note first = new Note();
+        Note second = new Note();
+        when(noteRepository.findAll()).thenReturn(List.of(first, second));
+
+        List<Note> notes = noteService.getAllNotes();
+
+        assertThat(notes).containsExactly(first, second);
+        verify(noteRepository).findAll();
+    }
+
+    @Test
     void addNotePersistsWhenUserIdPresent() {
         Note note = new Note();
         note.setUserId("user-123");
@@ -87,6 +99,48 @@ class NoteServiceTest {
     }
 
     @Test
+    void searchAllNotesUsesRepositoryWhenKeywordProvided() {
+        Note note = new Note();
+        when(noteRepository.searchByKeyword("term")).thenReturn(List.of(note));
+
+        List<Note> results = noteService.searchAllNotes(" term ");
+
+        assertThat(results).containsExactly(note);
+        verify(noteRepository).searchByKeyword("term");
+    }
+
+    @Test
+    void searchAllNotesFallsBackToAllNotesWhenKeywordBlank() {
+        Note note = new Note();
+        when(noteRepository.findAll()).thenReturn(List.of(note));
+
+        List<Note> results = noteService.searchAllNotes("   ");
+
+        assertThat(results).containsExactly(note);
+        verify(noteRepository).findAll();
+        verifyNoMoreInteractions(noteRepository);
+    }
+
+    @Test
+    void getNoteByIdReturnsEmptyWhenIdBlank() {
+        Optional<Note> note = noteService.getNoteById("   ");
+
+        assertThat(note).isEmpty();
+        verifyNoInteractions(noteRepository);
+    }
+
+    @Test
+    void getNoteByIdDelegatesWhenIdPresent() {
+        Note existing = new Note();
+        when(noteRepository.findById("note-1")).thenReturn(Optional.of(existing));
+
+        Optional<Note> note = noteService.getNoteById("note-1");
+
+        assertThat(note).contains(existing);
+        verify(noteRepository).findById("note-1");
+    }
+
+    @Test
     void updateNoteForUserTrimsFieldsAndSaves() {
         Note existing = new Note();
         existing.setId("note-1");
@@ -108,6 +162,34 @@ class NoteServiceTest {
         when(noteRepository.findById("missing")).thenReturn(Optional.empty());
 
         boolean updated = noteService.updateNoteForUser("missing", "user-1", "Title", "Body");
+
+        assertThat(updated).isFalse();
+        verify(noteRepository, never()).save(any());
+    }
+
+    @Test
+    void updateNoteAsAdminUpdatesAnyExistingNote() {
+        Note existing = new Note();
+        existing.setId("note-1");
+        existing.setUserId("someone-else");
+        when(noteRepository.findById("note-1")).thenReturn(Optional.of(existing));
+
+        boolean updated = noteService.updateNoteAsAdmin("note-1", "  Admin Title  ", "  Admin Body  ");
+
+        assertThat(updated).isTrue();
+        ArgumentCaptor<Note> captor = ArgumentCaptor.forClass(Note.class);
+        verify(noteRepository).save(captor.capture());
+        Note saved = captor.getValue();
+        assertThat(saved.getUserId()).isEqualTo("someone-else");
+        assertThat(saved.getTitle()).isEqualTo("Admin Title");
+        assertThat(saved.getContent()).isEqualTo("Admin Body");
+    }
+
+    @Test
+    void updateNoteAsAdminReturnsFalseWhenNotFound() {
+        when(noteRepository.findById("missing")).thenReturn(Optional.empty());
+
+        boolean updated = noteService.updateNoteAsAdmin("missing", "Title", "Body");
 
         assertThat(updated).isFalse();
         verify(noteRepository, never()).save(any());

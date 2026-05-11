@@ -1,0 +1,1514 @@
+[1mdiff --git a/docker-compose.yml b/docker-compose.yml[m
+[1mindex 94772ec..5ace539 100644[m
+[1m--- a/docker-compose.yml[m
+[1m+++ b/docker-compose.yml[m
+[36m@@ -1,26 +1,13 @@[m
+ services:[m
+   app:[m
+[31m-    build:[m
+[31m-      context: .[m
+[31m-      dockerfile: Dockerfile[m
+[32m+[m[32m    image: ghcr.io/fethullahcucu/notekeep:main[m
+     ports:[m
+       - 8080:8080[m
+     environment:[m
+[31m-      SPRING_DATA_MONGODB_URI: mongodb://db:27017/NoteKeep[m
+[31m-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google_vision_api[m
+[31m-    secrets:[m
+[31m-      - google_vision_api[m
+[31m-    depends_on:[m
+[31m-      - db[m
+[31m-  db:[m
+[31m-    image: mongo:7 [m
+[31m-    environment:[m
+[31m-      MONGO_INITDB_DATABASE: NoteKeep[m
+[31m-    volumes:[m
+[31m-      - mongo_data:/data/db[m
+[31m-secrets:[m
+[31m-  google_vision_api:[m
+[31m-    file: C:\Users\fethu\Desktop\NewBackup\rising-memory-471013-a3-f19bfdfd6cc3.json[m
+[31m-volumes:[m
+[31m-  mongo_data:[m
+[32m+[m[32m      SPRING_DATA_MONGODB_URI: mongodb://host.docker.internal:27017/NoteKeep[m
+[32m+[m[32m      # GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google_vision_api[m
+[32m+[m[32m    # secrets:[m
+[32m+[m[32m    #   - google_vision_api[m
+[32m+[m[32m    extra_hosts:[m
+[32m+[m[32m      - "host.docker.internal:host-gateway"[m
+ [m
+[1mdiff --git a/entrypoint.sh b/entrypoint.sh[m
+[1mindex 17f8d1b..29e2789 100644[m
+[1m--- a/entrypoint.sh[m
+[1m+++ b/entrypoint.sh[m
+[36m@@ -6,7 +6,12 @@[m [mapt-get update[m
+ apt-get install -y --no-install-recommends netcat-openbsd[m
+ rm -rf /var/lib/apt/lists/*[m
+ [m
+[31m-while ! nc -z service-metada-name-mongodb.mongodb.svc.cluster.local 27017; do[m
+[32m+[m[32m# Try Docker Compose service name first, then Kubernetes service name[m
+[32m+[m[32mMONGO_HOST="${MONGO_HOST:-db}"[m
+[32m+[m[32mMONGO_PORT="${MONGO_PORT:-27017}"[m
+[32m+[m
+[32m+[m[32mwhile ! nc -z "$MONGO_HOST" "$MONGO_PORT"; do[m
+[32m+[m[32m    echo "Database not ready yet, retrying..."[m
+     sleep 1[m
+ done[m
+ echo "Database Ready...."[m
+[1mdiff --git a/pom.xml b/pom.xml[m
+[1mindex 4be2436..9cc4220 100644[m
+[1m--- a/pom.xml[m
+[1m+++ b/pom.xml[m
+[36m@@ -80,10 +80,6 @@[m
+             <groupId>org.springframework.boot</groupId>[m
+             <artifactId>spring-boot-starter-security</artifactId>[m
+         </dependency>[m
+[31m-        <dependency>[m
+[31m-            <groupId>org.springframework.boot</groupId>[m
+[31m-            <artifactId>spring-boot-starter-oauth2-client</artifactId>[m
+[31m-        </dependency>[m
+     </dependencies>[m
+     <dependencyManagement>[m
+         <dependencies>[m
+[1mdiff --git a/src/main/java/com/example/NoteKeep/Controller/NoteController.java b/src/main/java/com/example/NoteKeep/Controller/NoteController.java[m
+[1mindex 4c6d428..d110e1e 100644[m
+[1m--- a/src/main/java/com/example/NoteKeep/Controller/NoteController.java[m
+[1m+++ b/src/main/java/com/example/NoteKeep/Controller/NoteController.java[m
+[36m@@ -1,8 +1,10 @@[m
+ package com.example.NoteKeep.Controller;[m
+ [m
+ import java.util.ArrayList;[m
+[32m+[m[32mimport java.util.HashMap;[m
+ import java.util.LinkedHashSet;[m
+ import java.util.List;[m
+[32m+[m[32mimport java.util.Map;[m
+ import java.util.Optional;[m
+ import java.util.Set;[m
+ import java.util.regex.Matcher;[m
+[36m@@ -24,6 +26,8 @@[m [mimport org.springframework.web.bind.annotation.RequestParam;[m
+ [m
+ import com.example.NoteKeep.Model.Note;[m
+ import com.example.NoteKeep.Service.NoteService;[m
+[32m+[m[32mimport com.example.UserRegistration.Dto.UserDto;[m
+[32m+[m[32mimport com.example.UserRegistration.Model.Role;[m
+ import com.example.UserRegistration.Service.UserService;[m
+ [m
+ @Controller[m
+[36m@@ -44,13 +48,25 @@[m [mpublic class NoteController {[m
+     @GetMapping[m
+     public String getNotes(@RequestParam(value = "search", required = false) String search,[m
+                            @RequestParam(value = "tags", required = false) String tagsParam,[m
+[32m+[m[32m                           @RequestParam(value = "filterUserId", required = false) String filterUserId,[m
+                            Model model, Authentication authentication) {[m
+         List<Note> notes = new ArrayList<>();[m
+         String email = authentication.getName();[m
+         com.example.UserRegistration.Model.User user = userService.findUserByEmail(email);[m
+[32m+[m[32m        boolean admin = isAdmin(user);[m
+ [m
+         if (user != null && user.getId() != null) {[m
+[31m-            if (search != null && !search.isBlank()) {[m
+[32m+[m[32m            if (admin && filterUserId != null && !filterUserId.isBlank()) {[m
+[32m+[m[32m                if (search != null && !search.isBlank()) {[m
+[32m+[m[32m                    notes = noteService.searchNotes(search, filterUserId);[m
+[32m+[m[32m                } else {[m
+[32m+[m[32m                    notes = noteService.getNotesForUser(filterUserId);[m
+[32m+[m[32m                }[m
+[32m+[m[32m            } else if (admin && search != null && !search.isBlank()) {[m
+[32m+[m[32m                notes = noteService.searchAllNotes(search);[m
+[32m+[m[32m            } else if (admin) {[m
+[32m+[m[32m                notes = noteService.getAllNotes();[m
+[32m+[m[32m            } else if (search != null && !search.isBlank()) {[m
+                 notes = noteService.searchNotes(search, user.getId());[m
+             } else {[m
+                 notes = noteService.getNotesForUser(user.getId());[m
+[36m@@ -88,10 +104,29 @@[m [mpublic class NoteController {[m
+                     .collect(Collectors.toList());[m
+         }[m
+ [m
+[32m+[m[32m        Map<String, com.example.UserRegistration.Model.User> userMap = new HashMap<>();[m
+[32m+[m[32m        List<UserDto> allUsers = new ArrayList<>();[m
+[32m+[m[32m        if (admin) {[m
+[32m+[m[32m            for (Note note : notes) {[m
+[32m+[m[32m                if (note.getUserId() != null && !userMap.containsKey(note.getUserId())) {[m
+[32m+[m[32m                    com.example.UserRegistration.Model.User noteUser = userService.findUserById(note.getUserId());[m
+[32m+[m[32m                    if (noteUser != null) {[m
+[32m+[m[32m                        userMap.put(note.getUserId(), noteUser);[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m            allUsers = userService.findAllUsers();[m
+[32m+[m[32m        }[m
+[32m+[m
+         model.addAttribute("notes", notes);[m
+         model.addAttribute("search", search);[m
+         model.addAttribute("hashtags", hashtags);[m
+         model.addAttribute("selectedTags", selectedTags);[m
+[32m+[m[32m        model.addAttribute("isAdmin", admin);[m
+[32m+[m[32m        model.addAttribute("currentUserId", user == null ? null : user.getId());[m
+[32m+[m[32m        model.addAttribute("userMap", userMap);[m
+[32m+[m[32m        model.addAttribute("allUsers", allUsers);[m
+[32m+[m[32m        model.addAttribute("selectedUserId", filterUserId);[m
+         return "notes";[m
+     }[m
+ [m
+[36m@@ -103,6 +138,10 @@[m [mpublic class NoteController {[m
+             logger.warn("Attempt to add note without a valid user; principal={} ", email);[m
+             return "redirect:/notes";[m
+         }[m
+[32m+[m[32m        if (isAdmin(user)) {[m
+[32m+[m[32m            logger.warn("Admin user {} attempted to create a note", email);[m
+[32m+[m[32m            return "redirect:/notes";[m
+[32m+[m[32m        }[m
+         note.setUserId(user.getId());[m
+         noteService.addNote(note);[m
+         return "redirect:/notes";[m
+[36m@@ -117,13 +156,17 @@[m [mpublic class NoteController {[m
+             return "redirect:/notes";[m
+         }[m
+ [m
+[31m-        Optional<Note> note = noteService.getNoteByIdForUser(noteId, user.getId());[m
+[32m+[m[32m        boolean admin = isAdmin(user);[m
+[32m+[m[32m        Optional<Note> note = admin[m
+[32m+[m[32m                ? noteService.getNoteById(noteId)[m
+[32m+[m[32m                : noteService.getNoteByIdForUser(noteId, user.getId());[m
+         if (note.isEmpty()) {[m
+             logger.warn("Edit denied: note not found or does not belong to user. noteId={}, userId={}", noteId, user.getId());[m
+             return "redirect:/notes";[m
+         }[m
+ [m
+         model.addAttribute("note", note.get());[m
+[32m+[m[32m        model.addAttribute("isAdmin", admin);[m
+         return "edit-note";[m
+     }[m
+ [m
+[36m@@ -140,11 +183,14 @@[m [mpublic class NoteController {[m
+             return "redirect:/notes";[m
+         }[m
+ [m
+[31m-        boolean updated = noteService.updateNoteForUser(noteId, user.getId(), title, content);[m
+[32m+[m[32m        boolean admin = isAdmin(user);[m
+[32m+[m[32m        boolean updated = admin[m
+[32m+[m[32m                ? noteService.updateNoteAsAdmin(noteId, title, content)[m
+[32m+[m[32m                : noteService.updateNoteForUser(noteId, user.getId(), title, content);[m
+         if (!updated) {[m
+             logger.warn("Update denied: note not found or does not belong to user. noteId={}, userId={}", noteId, user.getId());[m
+         } else {[m
+[31m-            logger.info("Note updated: id={} by user={}", noteId, user.getId());[m
+[32m+[m[32m            logger.info("Note updated: id={} by user={} admin={}", noteId, user.getId(), admin);[m
+         }[m
+         return "redirect:/notes"; [m
+     }[m
+[36m@@ -167,6 +213,10 @@[m [mpublic class NoteController {[m
+         }[m
+         return "redirect:/notes";[m
+     }[m
+[32m+[m
+[32m+[m[32m    private boolean isAdmin(com.example.UserRegistration.Model.User user) {[m
+[32m+[m[32m        return user != null && user.getRoles() != null && user.getRoles().contains(Role.ROLE_ADMIN);[m
+[32m+[m[32m    }[m
+     /* [m
+     @PostMapping(value = "/detect")[m
+     @ResponseBody[m
+[1mdiff --git a/src/main/java/com/example/NoteKeep/DetectText.java b/src/main/java/com/example/NoteKeep/DetectText.java[m
+[1mdeleted file mode 100644[m
+[1mindex 848528a..0000000[m
+[1m--- a/src/main/java/com/example/NoteKeep/DetectText.java[m
+[1m+++ /dev/null[m
+[36m@@ -1,60 +0,0 @@[m
+[31m-package com.example.NoteKeep;[m
+[31m-/* [m
+[31m-import com.google.cloud.vision.v1.AnnotateImageRequest;[m
+[31m-import com.google.cloud.vision.v1.AnnotateImageResponse;[m
+[31m-import com.google.cloud.vision.v1.BatchAnnotateImagesResponse;[m
+[31m-import com.google.cloud.vision.v1.EntityAnnotation;[m
+[31m-import com.google.cloud.vision.v1.Feature;[m
+[31m-import com.google.cloud.vision.v1.Image;[m
+[31m-import com.google.cloud.vision.v1.ImageAnnotatorClient;[m
+[31m-import com.google.protobuf.ByteString;[m
+[31m-import org.slf4j.Logger;[m
+[31m-import org.slf4j.LoggerFactory;[m
+[31m-[m
+[31m-import java.io.IOException;[m
+[31m-import java.util.ArrayList;[m
+[31m-import java.util.List;[m
+[31m-[m
+[31m-public class DetectText {[m
+[31m-[m
+[31m-    private static final Logger logger = LoggerFactory.getLogger(DetectText.class);[m
+[31m-[m
+[31m-    public static String detectTextFromBytes(byte[] bytes) throws IOException {[m
+[31m-        if (bytes == null || bytes.length == 0) return "";[m
+[31m-[m
+[31m-        String credentialsPath = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");[m
+[31m-        if (credentialsPath == null || credentialsPath.isBlank()) {[m
+[31m-            logger.warn("GOOGLE_APPLICATION_CREDENTIALS is not configured; skipping OCR");[m
+[31m-            return "";[m
+[31m-        }[m
+[31m-[m
+[31m-        List<AnnotateImageRequest> requests = new ArrayList<>();[m
+[31m-        ByteString imgBytes = ByteString.copyFrom(bytes);[m
+[31m-        Image img = Image.newBuilder().setContent(imgBytes).build();[m
+[31m-        Feature feat = Feature.newBuilder().setType(Feature.Type.TEXT_DETECTION).build();[m
+[31m-        AnnotateImageRequest request =[m
+[31m-                AnnotateImageRequest.newBuilder().addFeatures(feat).setImage(img).build();[m
+[31m-        requests.add(request);[m
+[31m-[m
+[31m-        StringBuilder out = new StringBuilder();[m
+[31m-        try (ImageAnnotatorClient client = ImageAnnotatorClient.create()) {[m
+[31m-            BatchAnnotateImagesResponse response = client.batchAnnotateImages(requests);[m
+[31m-            List<AnnotateImageResponse> responses = response.getResponsesList();[m
+[31m-[m
+[31m-            for (AnnotateImageResponse res : responses) {[m
+[31m-                if (res.hasError()) {[m
+[31m-                    throw new IOException("Vision API error: " + res.getError().getMessage());[m
+[31m-                }[m
+[31m-                List<EntityAnnotation> annotations = res.getTextAnnotationsList();[m
+[31m-                if (annotations != null && !annotations.isEmpty()) {[m
+[31m-                    out.append(annotations.get(0).getDescription());[m
+[31m-                }[m
+[31m-            }[m
+[31m-        } catch (IOException e) {[m
+[31m-            logger.error("Failed to call Google Vision API", e);[m
+[31m-            throw e;[m
+[31m-        }[m
+[31m-        return out.toString();[m
+[31m-    }[m
+[31m-}[m
+[31m-    */[m
+[1mdiff --git a/src/main/java/com/example/NoteKeep/Model/Note.java b/src/main/java/com/example/NoteKeep/Model/Note.java[m
+[1mindex 3d37e3f..78cc918 100644[m
+[1m--- a/src/main/java/com/example/NoteKeep/Model/Note.java[m
+[1m+++ b/src/main/java/com/example/NoteKeep/Model/Note.java[m
+[36m@@ -9,10 +9,7 @@[m [mimport lombok.Getter;[m
+ import lombok.NoArgsConstructor;[m
+ import lombok.Setter;[m
+ [m
+[31m-[m
+ import java.time.Instant;[m
+[31m-import java.util.List;[m
+[31m-[m
+ [m
+ @Getter[m
+ @Setter[m
+[36m@@ -38,9 +35,51 @@[m [mpublic class Note {[m
+     @LastModifiedDate[m
+     private Instant updatedAt;[m
+ [m
+[32m+[m[32m    public String getId() {[m
+[32m+[m[32m        return id;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setId(String id) {[m
+[32m+[m[32m        this.id = id;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String getTitle() {[m
+[32m+[m[32m        return title;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setTitle(String title) {[m
+[32m+[m[32m        this.title = title;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String getContent() {[m
+[32m+[m[32m        return content;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setContent(String content) {[m
+[32m+[m[32m        this.content = content;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String getUserId() {[m
+[32m+[m[32m        return userId;[m
+[32m+[m[32m    }[m
+ [m
+[32m+[m[32m    public void setUserId(String userId) {[m
+[32m+[m[32m        this.userId = userId;[m
+[32m+[m[32m    }[m
+ [m
+[32m+[m[32m    public Instant getCreatedAt() {[m
+[32m+[m[32m        return createdAt;[m
+[32m+[m[32m    }[m
+ [m
+[32m+[m[32m    public void setCreatedAt(Instant createdAt) {[m
+[32m+[m[32m        this.createdAt = createdAt;[m
+[32m+[m[32m    }[m
+ [m
+[32m+[m[32m    public Instant getUpdatedAt() {[m
+[32m+[m[32m        return updatedAt;[m
+[32m+[m[32m    }[m
+ [m
+[31m-}[m
+\ No newline at end of file[m
+[32m+[m[32m    public void setUpdatedAt(Instant updatedAt) {[m
+[32m+[m[32m        this.updatedAt = updatedAt;[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/src/main/java/com/example/NoteKeep/Repository/NoteRepository.java b/src/main/java/com/example/NoteKeep/Repository/NoteRepository.java[m
+[1mindex fd987e9..cd54d80 100644[m
+[1m--- a/src/main/java/com/example/NoteKeep/Repository/NoteRepository.java[m
+[1m+++ b/src/main/java/com/example/NoteKeep/Repository/NoteRepository.java[m
+[36m@@ -11,4 +11,7 @@[m [mpublic interface NoteRepository extends MongoRepository<Note, String> {[m
+ [m
+     @Query("{ 'userId': ?0, $or: [ { 'title': { $regex: ?1, $options: 'i' } }, { 'content': { $regex: ?1, $options: 'i' } } ] }")[m
+     List<Note> searchByUserIdAndKeyword(String userId, String keyword);[m
+[32m+[m
+[32m+[m[32m    @Query("{ $or: [ { 'title': { $regex: ?0, $options: 'i' } }, { 'content': { $regex: ?0, $options: 'i' } }, { 'userId': { $regex: ?0, $options: 'i' } } ] }")[m
+[32m+[m[32m    List<Note> searchByKeyword(String keyword);[m
+ }[m
+[1mdiff --git a/src/main/java/com/example/NoteKeep/Service/NoteService.java b/src/main/java/com/example/NoteKeep/Service/NoteService.java[m
+[1mindex 1a4618e..85ebeac 100644[m
+[1m--- a/src/main/java/com/example/NoteKeep/Service/NoteService.java[m
+[1m+++ b/src/main/java/com/example/NoteKeep/Service/NoteService.java[m
+[36m@@ -22,6 +22,10 @@[m [mpublic class NoteService {[m
+         return noteRepository.findByUserId(userId);[m
+     }[m
+ [m
+[32m+[m[32m    public List<Note> getAllNotes() {[m
+[32m+[m[32m        return noteRepository.findAll();[m
+[32m+[m[32m    }[m
+[32m+[m
+     public List<Note> searchNotes(String keyword, String userId) {[m
+         if (userId == null || userId.isBlank()) {[m
+             return Collections.emptyList();[m
+[36m@@ -32,6 +36,13 @@[m [mpublic class NoteService {[m
+         return noteRepository.searchByUserIdAndKeyword(userId, keyword.trim());[m
+     }[m
+ [m
+[32m+[m[32m    public List<Note> searchAllNotes(String keyword) {[m
+[32m+[m[32m        if (keyword == null || keyword.isBlank()) {[m
+[32m+[m[32m            return getAllNotes();[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return noteRepository.searchByKeyword(keyword.trim());[m
+[32m+[m[32m    }[m
+[32m+[m
+     public void addNote(Note note) {[m
+         if (note == null || note.getUserId() == null || note.getUserId().isBlank()) {[m
+             return;[m
+[36m@@ -47,6 +58,13 @@[m [mpublic class NoteService {[m
+                 .filter(note -> userId.equals(note.getUserId()));[m
+     }[m
+ [m
+[32m+[m[32m    public Optional<Note> getNoteById(String noteId) {[m
+[32m+[m[32m        if (noteId == null || noteId.isBlank()) {[m
+[32m+[m[32m            return Optional.empty();[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return noteRepository.findById(noteId);[m
+[32m+[m[32m    }[m
+[32m+[m
+     public boolean deleteNoteForUser(String noteId, String userId) {[m
+         Optional<Note> noteOpt = getNoteByIdForUser(noteId, userId);[m
+         if (noteOpt.isEmpty()) {[m
+[36m@@ -76,4 +94,25 @@[m [mpublic class NoteService {[m
+         noteRepository.save(note);[m
+         return true;[m
+     }[m
+[32m+[m
+[32m+[m[32m    public boolean updateNoteAsAdmin(String noteId, String title, String content) {[m
+[32m+[m[32m        if (noteId == null || noteId.isBlank()) {[m
+[32m+[m[32m            return false;[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        Optional<Note> noteOpt = noteRepository.findById(noteId);[m
+[32m+[m[32m        if (noteOpt.isEmpty()) {[m
+[32m+[m[32m            return false;[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        Note note = noteOpt.get();[m
+[32m+[m[32m        if (title != null) {[m
+[32m+[m[32m            note.setTitle(title.trim());[m
+[32m+[m[32m        }[m
+[32m+[m[32m        if (content != null) {[m
+[32m+[m[32m            note.setContent(content.trim());[m
+[32m+[m[32m        }[m
+[32m+[m[32m        noteRepository.save(note);[m
+[32m+[m[32m        return true;[m
+[32m+[m[32m    }[m
+ }[m
+[1mdiff --git a/src/main/java/com/example/UserRegistration/Config/SpringSecurity.java b/src/main/java/com/example/UserRegistration/Config/SpringSecurity.java[m
+[1mindex 768b896..7a9c0ab 100644[m
+[1m--- a/src/main/java/com/example/UserRegistration/Config/SpringSecurity.java[m
+[1m+++ b/src/main/java/com/example/UserRegistration/Config/SpringSecurity.java[m
+[36m@@ -11,15 +11,13 @@[m [mimport org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;[m
+ import org.springframework.security.crypto.password.PasswordEncoder;[m
+ import org.springframework.web.servlet.handler.HandlerMappingIntrospector;[m
+ [m
+[31m-import com.example.UserRegistration.Security.OAuth2LoginSuccessHandler;[m
+ @EnableWebSecurity[m
+ @Configuration[m
+ public class SpringSecurity {[m
+ [m
+     @Bean[m
+     SecurityFilterChain securityFilterChain(HttpSecurity http,[m
+[31m-                                           HandlerMappingIntrospector introspector,[m
+[31m-                                           OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler) throws Exception {[m
+[32m+[m[32m                                           HandlerMappingIntrospector introspector) throws Exception {[m
+         http[m
+             .authorizeHttpRequests(auth -> auth[m
+                 // allow static resources[m
+[36m@@ -27,8 +25,6 @@[m [mpublic class SpringSecurity {[m
+                 .requestMatchers(new AntPathRequestMatcher("/js/**")).permitAll()[m
+                 .requestMatchers(new AntPathRequestMatcher("/images/**")).permitAll()[m
+                 .requestMatchers(new AntPathRequestMatcher("/webjars/**")).permitAll()[m
+[31m-                .requestMatchers(new AntPathRequestMatcher("/oauth2/**")).permitAll()[m
+[31m-                .requestMatchers(new AntPathRequestMatcher("/login/oauth2/**")).permitAll()[m
+ [m
+                 // existing app route rules[m
+                 .requestMatchers(new AntPathRequestMatcher("/notekeep")).permitAll()[m
+[36m@@ -44,10 +40,6 @@[m [mpublic class SpringSecurity {[m
+                 .usernameParameter("email")[m
+                 .permitAll()[m
+             )[m
+[31m-            .oauth2Login(oauth2 -> oauth2[m
+[31m-                .loginPage("/notekeep")[m
+[31m-                .successHandler(oAuth2LoginSuccessHandler)[m
+[31m-            )[m
+             .logout(l -> l.logoutRequestMatcher(new AntPathRequestMatcher("/logout")).permitAll());[m
+ [m
+         return http.build();[m
+[1mdiff --git a/src/main/java/com/example/UserRegistration/Controller/AuthController.java b/src/main/java/com/example/UserRegistration/Controller/AuthController.java[m
+[1mindex 8538cd9..0b2cf01 100644[m
+[1m--- a/src/main/java/com/example/UserRegistration/Controller/AuthController.java[m
+[1m+++ b/src/main/java/com/example/UserRegistration/Controller/AuthController.java[m
+[36m@@ -2,6 +2,7 @@[m [mpackage com.example.UserRegistration.Controller;[m
+ [m
+ import com.example.UserRegistration.Dto.UserDto;[m
+ import com.example.UserRegistration.Model.User;[m
+[32m+[m[32mimport com.example.UserRegistration.Model.Role;[m
+ import com.example.UserRegistration.Service.UserService;[m
+ import org.springframework.beans.factory.annotation.Autowired;[m
+ import org.springframework.stereotype.Controller;[m
+[36m@@ -9,6 +10,8 @@[m [mimport org.springframework.ui.Model;[m
+ import org.springframework.validation.BindingResult;[m
+ import org.springframework.web.bind.annotation.*;[m
+ import org.springframework.security.core.Authentication;[m
+[32m+[m[32mimport org.slf4j.Logger;[m
+[32m+[m[32mimport org.slf4j.LoggerFactory;[m
+ [m
+ import java.util.List;[m
+ [m
+[36m@@ -20,7 +23,10 @@[m [mpublic class AuthController {[m
+ [m
+ [m
+     @GetMapping("/notekeep")[m
+[31m-    public String login() {[m
+[32m+[m[32m    public String login(Authentication authentication) {[m
+[32m+[m[32m        if (authentication != null && authentication.isAuthenticated()) {[m
+[32m+[m[32m            return "redirect:/notes";[m
+[32m+[m[32m        }[m
+         return "notekeep";[m
+     }[m
+ [m
+[36m@@ -33,7 +39,10 @@[m [mpublic class AuthController {[m
+ [m
+     [m
+     @GetMapping("/register")[m
+[31m-    public String showRegistrationForm(Model model) {[m
+[32m+[m[32m    public String showRegistrationForm(Model model, Authentication authentication) {[m
+[32m+[m[32m        if (authentication != null && authentication.isAuthenticated()) {[m
+[32m+[m[32m            return "redirect:/notes";[m
+[32m+[m[32m        }[m
+         UserDto user = new UserDto();[m
+         model.addAttribute("user", user);[m
+         return "register";[m
+[36m@@ -61,12 +70,62 @@[m [mpublic class AuthController {[m
+     }[m
+ [m
+     [m
+[31m-    @GetMapping("/users")[m
+[31m-    public String users(Model model) {[m
+[32m+[m[32m    @GetMapping("/admin/users")[m
+[32m+[m[32m    public String adminUsers(Model model, Authentication authentication) {[m
+[32m+[m[32m        User currentUser = userService.findUserByEmail(authentication.getName());[m
+[32m+[m[32m        if (currentUser == null || !isAdmin(currentUser)) {[m
+[32m+[m[32m            return "redirect:/notes";[m
+[32m+[m[32m        }[m
+[32m+[m
+         List<UserDto> users = userService.findAllUsers();[m
+         model.addAttribute("users", users);[m
+[31m-        return "users";[m
+[32m+[m[32m        return "admin-users";[m
+     }[m
+ [m
+[31m-    [m
+[32m+[m[32m    @GetMapping("/admin/users/{userId}/edit")[m
+[32m+[m[32m    public String adminEditUser(@PathVariable String userId, Model model, Authentication authentication) {[m
+[32m+[m[32m        User currentUser = userService.findUserByEmail(authentication.getName());[m
+[32m+[m[32m        if (currentUser == null || !isAdmin(currentUser)) {[m
+[32m+[m[32m            return "redirect:/notes";[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        User user = userService.findUserById(userId);[m
+[32m+[m[32m        if (user == null) {[m
+[32m+[m[32m            return "redirect:/admin/users";[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        model.addAttribute("user", user);[m
+[32m+[m[32m        return "admin-edit-user";[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    @PostMapping("/admin/users/{userId}/update")[m
+[32m+[m[32m    public String adminUpdateUser(@PathVariable String userId,[m
+[32m+[m[32m                                   @RequestParam String firstName,[m
+[32m+[m[32m                                   @RequestParam String lastName,[m
+[32m+[m[32m                                   @RequestParam String email,[m
+[32m+[m[32m                                   Authentication authentication) {[m
+[32m+[m[32m        User currentUser = userService.findUserByEmail(authentication.getName());[m
+[32m+[m[32m        if (currentUser == null || !isAdmin(currentUser)) {[m
+[32m+[m[32m            return "redirect:/notes";[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        userService.updateUserById(userId, firstName, lastName, email);[m
+[32m+[m[32m        return "redirect:/admin/users";[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    @PostMapping("/admin/users/{userId}/delete")[m
+[32m+[m[32m    public String adminDeleteUser(@PathVariable String userId,[m
+[32m+[m[32m                                   Authentication authentication) {[m
+[32m+[m[32m        User currentUser = userService.findUserByEmail(authentication.getName());[m
+[32m+[m[32m        if (currentUser == null || !isAdmin(currentUser)) {[m
+[32m+[m[32m            return "redirect:/notes";[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        userService.deleteUserById(userId);[m
+[32m+[m[32m        return "redirect:/admin/users";[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    private boolean isAdmin(User user) {[m
+[32m+[m[32m        return user != null && user.getRoles() != null && user.getRoles().contains(Role.ROLE_ADMIN);[m
+[32m+[m[32m    }[m
+ }[m
+[1mdiff --git a/src/main/java/com/example/UserRegistration/Dto/UserDto.java b/src/main/java/com/example/UserRegistration/Dto/UserDto.java[m
+[1mindex 047ba09..a799b34 100644[m
+[1m--- a/src/main/java/com/example/UserRegistration/Dto/UserDto.java[m
+[1m+++ b/src/main/java/com/example/UserRegistration/Dto/UserDto.java[m
+[36m@@ -14,12 +14,58 @@[m [mimport java.util.Set;[m
+ @AllArgsConstructor[m
+ public class UserDto {[m
+ [m
+[31m-    [m
+[31m-    private Long userId;[m
+[32m+[m[32m    private String id;[m
+     private String firstName;[m
+     private String lastName;[m
+     private String email;[m
+     private String password;[m
+     private Set<Role> roles;[m
+[31m-    [m
+[32m+[m
+[32m+[m[32m    public String getId() {[m
+[32m+[m[32m        return id;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setId(String id) {[m
+[32m+[m[32m        this.id = id;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String getFirstName() {[m
+[32m+[m[32m        return firstName;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setFirstName(String firstName) {[m
+[32m+[m[32m        this.firstName = firstName;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String getLastName() {[m
+[32m+[m[32m        return lastName;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setLastName(String lastName) {[m
+[32m+[m[32m        this.lastName = lastName;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String getEmail() {[m
+[32m+[m[32m        return email;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setEmail(String email) {[m
+[32m+[m[32m        this.email = email;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String getPassword() {[m
+[32m+[m[32m        return password;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setPassword(String password) {[m
+[32m+[m[32m        this.password = password;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public Set<Role> getRoles() {[m
+[32m+[m[32m        return roles;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setRoles(Set<Role> roles) {[m
+[32m+[m[32m        this.roles = roles;[m
+[32m+[m[32m    }[m
+ }[m
+[1mdiff --git a/src/main/java/com/example/UserRegistration/Model/User.java b/src/main/java/com/example/UserRegistration/Model/User.java[m
+[1mindex dff6992..51f6019 100644[m
+[1m--- a/src/main/java/com/example/UserRegistration/Model/User.java[m
+[1m+++ b/src/main/java/com/example/UserRegistration/Model/User.java[m
+[36m@@ -1,7 +1,5 @@[m
+ package com.example.UserRegistration.Model;[m
+ [m
+[31m-[m
+[31m-[m
+ import org.springframework.data.annotation.CreatedDate;[m
+ import org.springframework.data.annotation.Id;[m
+ import org.springframework.data.mongodb.core.index.Indexed;[m
+[36m@@ -11,7 +9,6 @@[m [mimport lombok.Getter;[m
+ import lombok.NoArgsConstructor;[m
+ import lombok.Setter;[m
+ [m
+[31m-[m
+ import java.time.Instant;[m
+ import java.util.Set;[m
+ [m
+[36m@@ -28,17 +25,69 @@[m [mpublic class User {[m
+     private String firstName;[m
+     private String lastName;[m
+ [m
+[31m-    @Indexed(unique = true) [m
+[32m+[m[32m    @Indexed(unique = true)[m
+     private String email;[m
+ [m
+[31m-    private String password; [m
+[32m+[m[32m    private String password;[m
+ [m
+     private Set<Role> roles;[m
+ [m
+[31m-    @CreatedDate [m
+[32m+[m[32m    @CreatedDate[m
+     private Instant createdAt;[m
+ [m
+[31m-    [m
+[32m+[m[32m    public String getId() {[m
+[32m+[m[32m        return id;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setId(String id) {[m
+[32m+[m[32m        this.id = id;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String getFirstName() {[m
+[32m+[m[32m        return firstName;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setFirstName(String firstName) {[m
+[32m+[m[32m        this.firstName = firstName;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String getLastName() {[m
+[32m+[m[32m        return lastName;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setLastName(String lastName) {[m
+[32m+[m[32m        this.lastName = lastName;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String getEmail() {[m
+[32m+[m[32m        return email;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setEmail(String email) {[m
+[32m+[m[32m        this.email = email;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public String getPassword() {[m
+[32m+[m[32m        return password;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setPassword(String password) {[m
+[32m+[m[32m        this.password = password;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public Set<Role> getRoles() {[m
+[32m+[m[32m        return roles;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public void setRoles(Set<Role> roles) {[m
+[32m+[m[32m        this.roles = roles;[m
+[32m+[m[32m    }[m
+ [m
+[32m+[m[32m    public Instant getCreatedAt() {[m
+[32m+[m[32m        return createdAt;[m
+[32m+[m[32m    }[m
+ [m
+[32m+[m[32m    public void setCreatedAt(Instant createdAt) {[m
+[32m+[m[32m        this.createdAt = createdAt;[m
+[32m+[m[32m    }[m
+ }[m
+[1mdiff --git a/src/main/java/com/example/UserRegistration/Security/CustomUserDetailsService.java b/src/main/java/com/example/UserRegistration/Security/CustomUserDetailsService.java[m
+[1mindex a32fa32..66c7ab7 100644[m
+[1m--- a/src/main/java/com/example/UserRegistration/Security/CustomUserDetailsService.java[m
+[1m+++ b/src/main/java/com/example/UserRegistration/Security/CustomUserDetailsService.java[m
+[36m@@ -8,22 +8,54 @@[m [mimport org.springframework.security.core.userdetails.UsernameNotFoundException;[m
+ import org.springframework.security.core.authority.SimpleGrantedAuthority;[m
+ import org.springframework.stereotype.Service;[m
+ import org.springframework.security.core.userdetails.UserDetails;[m
+[31m-import java.util.Collections;[m
+[32m+[m[32mimport org.slf4j.Logger;[m
+[32m+[m[32mimport org.slf4j.LoggerFactory;[m
+[32m+[m[32mimport java.util.Set;[m
+[32m+[m[32mimport java.util.stream.Collectors;[m
+ [m
+ @Service[m
+ public class CustomUserDetailsService implements UserDetailsService {[m
+ [m
+[32m+[m[32m    private static final Logger logger = LoggerFactory.getLogger(CustomUserDetailsService.class);[m
+[32m+[m
+     @Autowired[m
+     private UserRepository userRepository;[m
+ [m
+     @Override[m
+     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {[m
+[31m-        User user = userRepository.findByEmail(email)[m
+[31m-            .orElseThrow(() -> new UsernameNotFoundException("User not found"));[m
+[31m-        return new org.springframework.security.core.userdetails.User([m
+[31m-            user.getEmail(),[m
+[31m-            user.getPassword(),[m
+[31m-            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))[m
+[31m-        );[m
+[32m+[m[32m        try {[m
+[32m+[m[32m            logger.info("Loading user by email: {}", email);[m
+[32m+[m[32m            User user = userRepository.findByEmail(email)[m
+[32m+[m[32m                .orElseThrow(() -> new UsernameNotFoundException("User not found"));[m
+[32m+[m
+[32m+[m[32m            logger.info("User found: {}, roles: {}", email, user.getRoles());[m
+[32m+[m
+[32m+[m[32m            Set<SimpleGrantedAuthority> authorities;[m
+[32m+[m[32m            if (user.getRoles() == null || user.getRoles().isEmpty()) {[m
+[32m+[m[32m                logger.info("No roles found, assigning ROLE_USER");[m
+[32m+[m[32m                authorities = Set.of(new SimpleGrantedAuthority("ROLE_USER"));[m
+[32m+[m[32m            } else {[m
+[32m+[m[32m                authorities = user.getRoles().stream()[m
+[32m+[m[32m                    .filter(role -> role != null)[m
+[32m+[m[32m                    .map(role -> {[m
+[32m+[m[32m                        logger.info("Adding role: {}", role.name());[m
+[32m+[m[32m                        return new SimpleGrantedAuthority(role.name());[m
+[32m+[m[32m                    })[m
+[32m+[m[32m                    .collect(Collectors.toSet());[m
+[32m+[m[32m                if (authorities.isEmpty()) {[m
+[32m+[m[32m                    authorities = Set.of(new SimpleGrantedAuthority("ROLE_USER"));[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m
+[32m+[m[32m            logger.info("User {} loaded with authorities: {}", email, authorities);[m
+[32m+[m[32m            return new org.springframework.security.core.userdetails.User([m
+[32m+[m[32m                user.getEmail(),[m
+[32m+[m[32m                user.getPassword(),[m
+[32m+[m[32m                authorities[m
+[32m+[m[32m            );[m
+[32m+[m[32m        } catch (Exception e) {[m
+[32m+[m[32m            logger.error("Error loading user {}: {}", email, e.getMessage(), e);[m
+[32m+[m[32m            throw e;[m
+[32m+[m[32m        }[m
+     }[m
+ }[m
+[1mdiff --git a/src/main/java/com/example/UserRegistration/Security/OAuth2LoginSuccessHandler.java b/src/main/java/com/example/UserRegistration/Security/OAuth2LoginSuccessHandler.java[m
+[1mdeleted file mode 100644[m
+[1mindex 637f0ec..0000000[m
+[1m--- a/src/main/java/com/example/UserRegistration/Security/OAuth2LoginSuccessHandler.java[m
+[1m+++ /dev/null[m
+[36m@@ -1,54 +0,0 @@[m
+[31m-package com.example.UserRegistration.Security;[m
+[31m-[m
+[31m-import java.io.IOException;[m
+[31m-import java.util.Map;[m
+[31m-[m
+[31m-import org.slf4j.Logger;[m
+[31m-import org.slf4j.LoggerFactory;[m
+[31m-import org.springframework.security.core.Authentication;[m
+[31m-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;[m
+[31m-import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;[m
+[31m-import org.springframework.stereotype.Component;[m
+[31m-import org.springframework.util.StringUtils;[m
+[31m-[m
+[31m-import com.example.UserRegistration.Service.UserService;[m
+[31m-[m
+[31m-import jakarta.servlet.ServletException;[m
+[31m-import jakarta.servlet.http.HttpServletRequest;[m
+[31m-import jakarta.servlet.http.HttpServletResponse;[m
+[31m-[m
+[31m-@Component[m
+[31m-public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {[m
+[31m-[m
+[31m-    private static final Logger logger = LoggerFactory.getLogger(OAuth2LoginSuccessHandler.class);[m
+[31m-[m
+[31m-    private final UserService userService;[m
+[31m-[m
+[31m-    public OAuth2LoginSuccessHandler(UserService userService) {[m
+[31m-        this.userService = userService;[m
+[31m-        setDefaultTargetUrl("/notes");[m
+[31m-    }[m
+[31m-[m
+[31m-    @Override[m
+[31m-    public void onAuthenticationSuccess(HttpServletRequest request,[m
+[31m-                                        HttpServletResponse response,[m
+[31m-                                        Authentication authentication) throws ServletException, IOException {[m
+[31m-        if (authentication instanceof OAuth2AuthenticationToken oauthToken) {[m
+[31m-            Map<String, Object> attributes = oauthToken.getPrincipal().getAttributes();[m
+[31m-            String email = attributes == null ? null : (String) attributes.get("email");[m
+[31m-[m
+[31m-            if (!StringUtils.hasText(email)) {[m
+[31m-                logger.warn("OAuth2 login succeeded but no email attribute was found for principal attributes={}", attributes);[m
+[31m-                response.sendRedirect("/notekeep?oauthError");[m
+[31m-                return;[m
+[31m-            }[m
+[31m-[m
+[31m-            String firstName = (String) attributes.getOrDefault("given_name", "");[m
+[31m-            String lastName = (String) attributes.getOrDefault("family_name", "");[m
+[31m-            userService.syncOAuthUser(email, firstName, lastName);[m
+[31m-            logger.info("OAuth2 login linked to local user account {}", email);[m
+[31m-        }[m
+[31m-[m
+[31m-        super.onAuthenticationSuccess(request, response, authentication);[m
+[31m-    }[m
+[31m-}[m
+[1mdiff --git a/src/main/java/com/example/UserRegistration/Service/UserService.java b/src/main/java/com/example/UserRegistration/Service/UserService.java[m
+[1mindex 331b8cb..6140889 100644[m
+[1m--- a/src/main/java/com/example/UserRegistration/Service/UserService.java[m
+[1m+++ b/src/main/java/com/example/UserRegistration/Service/UserService.java[m
+[36m@@ -12,9 +12,13 @@[m [mpublic interface UserService {[m
+ [m
+     User findUserByEmail(String email);[m
+ [m
+[32m+[m[32m    User findUserById(String userId);[m
+[32m+[m
+     List<UserDto> findAllUsers();[m
+[31m-    [m
+[32m+[m
+     void updateUserProfile(UserDto userDto);[m
+ [m
+[31m-    User syncOAuthUser(String email, String firstName, String lastName);[m
+[32m+[m[32m    void updateUserById(String userId, String firstName, String lastName, String email);[m
+[32m+[m
+[32m+[m[32m    void deleteUserById(String userId);[m
+ }[m
+[1mdiff --git a/src/main/java/com/example/UserRegistration/Service/UserServiceImpl.java b/src/main/java/com/example/UserRegistration/Service/UserServiceImpl.java[m
+[1mindex abbaf48..81d3b6a 100644[m
+[1m--- a/src/main/java/com/example/UserRegistration/Service/UserServiceImpl.java[m
+[1m+++ b/src/main/java/com/example/UserRegistration/Service/UserServiceImpl.java[m
+[36m@@ -5,6 +5,7 @@[m [mimport com.example.UserRegistration.Dto.UserDto;[m
+ import com.example.UserRegistration.Model.Role;[m
+ import com.example.UserRegistration.Model.User;[m
+ import com.example.UserRegistration.Repository.UserRepository;[m
+[32m+[m[32mimport com.example.NoteKeep.Repository.NoteRepository;[m
+ import org.springframework.security.crypto.password.PasswordEncoder;[m
+ import org.springframework.stereotype.Service;[m
+ [m
+[36m@@ -16,11 +17,14 @@[m [mimport java.util.stream.Collectors;[m
+ public class UserServiceImpl implements UserService {[m
+ [m
+     private final UserRepository userRepository;[m
+[32m+[m[32m    private final NoteRepository noteRepository;[m
+     private final PasswordEncoder passwordEncoder;[m
+ [m
+     public UserServiceImpl(UserRepository userRepository,[m
+[32m+[m[32m                           NoteRepository noteRepository,[m
+                            PasswordEncoder passwordEncoder) {[m
+         this.userRepository = userRepository;[m
+[32m+[m[32m        this.noteRepository = noteRepository;[m
+         this.passwordEncoder = passwordEncoder;[m
+     }[m
+ [m
+[36m@@ -41,6 +45,11 @@[m [mpublic class UserServiceImpl implements UserService {[m
+         return userRepository.findByEmail(email).orElse(null);[m
+     }[m
+ [m
+[32m+[m[32m    @Override[m
+[32m+[m[32m    public User findUserById(String userId) {[m
+[32m+[m[32m        return userRepository.findById(userId).orElse(null);[m
+[32m+[m[32m    }[m
+[32m+[m
+     @Override[m
+     public List<UserDto> findAllUsers() {[m
+         List<User> users = userRepository.findAll();[m
+[36m@@ -51,6 +60,7 @@[m [mpublic class UserServiceImpl implements UserService {[m
+ [m
+     private UserDto mapToUserDto(User user) {[m
+         UserDto userDto = new UserDto();[m
+[32m+[m[32m        userDto.setId(user.getId());[m
+         userDto.setFirstName(user.getFirstName());[m
+         userDto.setLastName(user.getLastName());[m
+         userDto.setEmail(user.getEmail());[m
+[36m@@ -65,7 +75,7 @@[m [mpublic class UserServiceImpl implements UserService {[m
+ [m
+         user.setFirstName(userDto.getFirstName());[m
+         user.setLastName(userDto.getLastName());[m
+[31m-        [m
+[32m+[m
+         if (userDto.getPassword() != null && !userDto.getPassword().isBlank()) {[m
+             user.setPassword(passwordEncoder.encode(userDto.getPassword()));[m
+         }[m
+[36m@@ -73,35 +83,30 @@[m [mpublic class UserServiceImpl implements UserService {[m
+     }[m
+ [m
+     @Override[m
+[31m-    public User syncOAuthUser(String email, String firstName, String lastName) {[m
+[31m-        User user = userRepository.findByEmail(email).orElseGet(() -> {[m
+[31m-            User newUser = new User();[m
+[31m-            newUser.setEmail(email);[m
+[31m-            newUser.setRoles(Set.of(Role.ROLE_USER));[m
+[31m-            return newUser;[m
+[31m-        });[m
+[32m+[m[32m    public void updateUserById(String userId, String firstName, String lastName, String email) {[m
+[32m+[m[32m        if (userId == null || userId.isBlank()) return;[m
+ [m
+[31m-        boolean needsSave = user.getId() == null;[m
+[32m+[m[32m        User user = userRepository.findById(userId).orElse(null);[m
+[32m+[m[32m        if (user == null) return;[m
+ [m
+[31m-        if (firstName != null && !firstName.isBlank() && !firstName.equals(user.getFirstName())) {[m
+[32m+[m[32m        if (firstName != null && !firstName.isBlank()) {[m
+             user.setFirstName(firstName);[m
+[31m-            needsSave = true;[m
+         }[m
+[31m-[m
+[31m-        if (lastName != null && !lastName.isBlank() && !lastName.equals(user.getLastName())) {[m
+[32m+[m[32m        if (lastName != null && !lastName.isBlank()) {[m
+             user.setLastName(lastName);[m
+[31m-            needsSave = true;[m
+         }[m
+[31m-[m
+[31m-        if (user.getRoles() == null || user.getRoles().isEmpty()) {[m
+[31m-            user.setRoles(Set.of(Role.ROLE_USER));[m
+[31m-            needsSave = true;[m
+[32m+[m[32m        if (email != null && !email.isBlank()) {[m
+[32m+[m[32m            user.setEmail(email);[m
+         }[m
+[32m+[m[32m        userRepository.save(user);[m
+[32m+[m[32m    }[m
+ [m
+[31m-        if (needsSave) {[m
+[31m-            userRepository.save(user);[m
+[31m-        }[m
+[32m+[m[32m    @Override[m
+[32m+[m[32m    public void deleteUserById(String userId) {[m
+[32m+[m[32m        if (userId == null || userId.isBlank()) return;[m
+ [m
+[31m-        return user;[m
+[32m+[m[32m        noteRepository.deleteAll(noteRepository.findByUserId(userId));[m
+[32m+[m[32m        userRepository.deleteById(userId);[m
+     }[m
+[32m+[m
+ }[m
+[1mdiff --git a/src/main/resources/application.properties b/src/main/resources/application.properties[m
+[1mindex af917a0..16d1426 100644[m
+[1m--- a/src/main/resources/application.properties[m
+[1m+++ b/src/main/resources/application.properties[m
+[36m@@ -1,16 +1,7 @@[m
+ spring.application.name=NoteKeep[m
+[31m-spring.data.mongodb.uri=${MONGODB_URI}[m
+[32m+[m[32mspring.data.mongodb.uri=${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/NoteKeep}[m
+ [m
+ spring.data.mongodb.database=NoteKeep[m
+[31m-spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID}[m
+[31m-spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET}[m
+[31m-spring.security.oauth2.client.registration.google.scope=openid,profile,email [m
+[31m-                                                        #scope of request[m
+[31m-spring.security.oauth2.client.registration.google.authorization-grant-type=authorization_code[m
+[31m-                                                                            #code to get token from google. [m
+[31m-spring.security.oauth2.client.registration.google.redirect-uri={baseUrl}/login/oauth2/code/{registrationId} [m
+[31m-                                                                #change baseUrl with your own website.[m
+[31m-spring.security.oauth2.client.registration.google.client-name=Google[m
+ [m
+ # Set false to disable the OCR endpoint temporarily.[m
+ #1notekeep.ocr.enabled=false[m
+[1mdiff --git a/src/main/resources/static/css/notes.css b/src/main/resources/static/css/notes.css[m
+[1mindex e2da013..66b6440 100644[m
+[1m--- a/src/main/resources/static/css/notes.css[m
+[1m+++ b/src/main/resources/static/css/notes.css[m
+[36m@@ -6,6 +6,72 @@[m [mbody { background: #2e7d32; color: #0b2b0b; -webkit-font-smoothing: antialiased;[m
+ :root { --navbar-height: 56px; }[m
+ .navbar { height: var(--navbar-height); min-height: var(--navbar-height); }[m
+ [m
+[32m+[m[32m/* Two-column admin layout */[m
+[32m+[m[32m.page-layout {[m
+[32m+[m[32m  display: flex;[m
+[32m+[m[32m  gap: 16px;[m
+[32m+[m[32m  padding: 20px;[m
+[32m+[m[32m  min-height: calc(100vh - var(--navbar-height));[m
+[32m+[m[32m  box-sizing: border-box;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.users-sidebar {[m
+[32m+[m[32m  flex: 0 0 220px;[m
+[32m+[m[32m  overflow-y: auto;[m
+[32m+[m[32m  background: #f8f9f4;[m
+[32m+[m[32m  border-radius: 8px;[m
+[32m+[m[32m  padding: 16px;[m
+[32m+[m[32m  box-shadow: 0 8px 20px rgba(0,0,0,0.15);[m
+[32m+[m[32m  border: 1px solid rgba(0,0,0,0.06);[m
+[32m+[m[32m  height: fit-content;[m
+[32m+[m[32m  position: sticky;[m
+[32m+[m[32m  top: 20px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.users-sidebar h5 {[m
+[32m+[m[32m  margin-top: 0;[m
+[32m+[m[32m  margin-bottom: 12px;[m
+[32m+[m[32m  color: #1b5e20;[m
+[32m+[m[32m  font-weight: 700;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.users-list {[m
+[32m+[m[32m  list-style: none;[m
+[32m+[m[32m  padding: 0;[m
+[32m+[m[32m  margin: 0;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.user-item {[m
+[32m+[m[32m  margin-bottom: 8px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.user-item a {[m
+[32m+[m[32m  display: block;[m
+[32m+[m[32m  padding: 10px 12px;[m
+[32m+[m[32m  border-radius: 4px;[m
+[32m+[m[32m  background: #ffffff;[m
+[32m+[m[32m  color: #334;[m
+[32m+[m[32m  text-decoration: none;[m
+[32m+[m[32m  border: 1px solid #cfe8d8;[m
+[32m+[m[32m  transition: all 0.2s ease;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.user-item a:hover {[m
+[32m+[m[32m  background: #e8f5e9;[m
+[32m+[m[32m  color: #1b5e20;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.user-item.active a {[m
+[32m+[m[32m  background: #1b5e20;[m
+[32m+[m[32m  color: #ffffff;[m
+[32m+[m[32m  border-color: #134b18;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.notes-main {[m
+[32m+[m[32m  flex: 1;[m
+[32m+[m[32m  min-width: 0;[m
+[32m+[m[32m}[m
+[32m+[m
+ /* Centering wrapper */[m
+ .center-wrapper {[m
+   display: flex;[m
+[36m@@ -46,12 +112,40 @@[m [mbody { background: #2e7d32; color: #0b2b0b; -webkit-font-smoothing: antialiased;[m
+ .note-item { padding: 12px; border-radius: 6px; background: #ffffffee; margin-bottom: 10px; border: 1px solid rgba(0,0,0,0.05); }[m
+ .note-item h6 { margin: 0 0 6px 0; }[m
+ .note-item p { margin: 0 0 6px 0; color: #334; }[m
+[32m+[m[32m.note-metadata {[m
+[32m+[m[32m  display: grid;[m
+[32m+[m[32m  grid-template-columns: repeat(2, minmax(0, 1fr));[m
+[32m+[m[32m  gap: 6px 12px;[m
+[32m+[m[32m  margin: 10px 0 0;[m
+[32m+[m[32m  padding: 10px;[m
+[32m+[m[32m  border-radius: 6px;[m
+[32m+[m[32m  background: #eef7ef;[m
+[32m+[m[32m  border: 1px solid #cfe8d8;[m
+[32m+[m[32m  font-size: 0.85rem;[m
+[32m+[m[32m}[m
+[32m+[m[32m.note-metadata div { min-width: 0; }[m
+[32m+[m[32m.note-metadata dt { font-weight: 700; color: #1b5e20; }[m
+[32m+[m[32m.note-metadata dd { margin: 0; overflow-wrap: anywhere; color: #334; }[m
+ [m
+ /* Buttons */[m
+ .btn-primary { background-color: #1b5e20; border-color: #134b18; color: #fff; }[m
+ [m
+ /* Responsive */[m
+ @media (max-width: 768px) {[m
+[32m+[m[32m  /* Admin layout: stack sidebar above notes */[m
+[32m+[m[32m  .page-layout {[m
+[32m+[m[32m    flex-direction: column;[m
+[32m+[m[32m    gap: 12px;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  .users-sidebar {[m
+[32m+[m[32m    flex: 0 1 auto;[m
+[32m+[m[32m    position: static;[m
+[32m+[m[32m    height: auto;[m
+[32m+[m[32m    max-height: 300px;[m
+[32m+[m[32m  }[m
+[32m+[m
+   .card-container { max-width: 92%; }[m
+   .card { padding: 16px; }[m
+[31m-}[m
+\ No newline at end of file[m
+[32m+[m[32m  .note-metadata { grid-template-columns: 1fr; }[m
+[32m+[m[32m}[m
+[1mdiff --git a/src/main/resources/static/js/notes-detect.js b/src/main/resources/static/js/notes-detect.js[m
+[1mdeleted file mode 100644[m
+[1mindex b695dbd..0000000[m
+[1m--- a/src/main/resources/static/js/notes-detect.js[m
+[1m+++ /dev/null[m
+[36m@@ -1,82 +0,0 @@[m
+[31m-[m
+[31m-document.addEventListener('DOMContentLoaded', function () {[m
+[31m-  const fileInput = document.getElementById('imageFile');[m
+[31m-  const detectBtn = document.getElementById('detectBtn');[m
+[31m-  const contentEl = document.getElementById('noteContent');[m
+[31m-[m
+[31m-  [m
+[31m-  const csrfTokenMeta = document.querySelector('meta[name="_csrf"]');[m
+[31m-  const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');[m
+[31m-  const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;[m
+[31m-  const csrfHeader = csrfHeaderMeta ? csrfHeaderMeta.getAttribute('content') : 'X-CSRF-TOKEN';[m
+[31m-[m
+[31m-  detectBtn && detectBtn.addEventListener('click', async function () {[m
+[31m-    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {[m
+[31m-      alert('Please choose an image first');[m
+[31m-      return;[m
+[31m-    }[m
+[31m-    const file = fileInput.files[0];[m
+[31m-    const fd = new FormData();[m
+[31m-    fd.append('file', file);[m
+[31m-[m
+[31m-    detectBtn.disabled = true;[m
+[31m-    const prevText = detectBtn.textContent;[m
+[31m-    detectBtn.textContent = 'Detecting...';[m
+[31m-[m
+[31m-    try {[m
+[31m-      const headers = {};[m
+[31m-      if (csrfToken) headers[csrfHeader] = csrfToken;[m
+[31m-[m
+[31m-      const resp = await fetch('/notes/detect', {[m
+[31m-        method: 'POST',[m
+[31m-        body: fd,[m
+[31m-        headers,[m
+[31m-        credentials: 'same-origin'[m
+[31m-      });[m
+[31m-[m
+[31m-      if (!resp.ok) throw new Error('Server returned ' + resp.status);[m
+[31m-[m
+[31m-      const detectedText = await resp.text();[m
+[31m-      if (contentEl) {[m
+[31m-        // append detected text to existing note content (preserve user input)[m
+[31m-        const existing = contentEl.value ? contentEl.value + '\n' : '';[m
+[31m-        contentEl.value = existing + detectedText;[m
+[31m-      }[m
+[31m-    } catch (err) {[m
+[31m-      console.error(err);[m
+[31m-      alert('Text detection failed. See console for details.');[m
+[31m-    } finally {[m
+[31m-      detectBtn.disabled = false;[m
+[31m-      detectBtn.textContent = prevText;[m
+[31m-    }[m
+[31m-  });[m
+[31m-[m
+[31m-  [m
+[31m-  function parseTagsParam() {[m
+[31m-    const params = new URLSearchParams(window.location.search);[m
+[31m-    const raw = params.get('tags') || '';[m
+[31m-    return raw.split(',').map(s => s.trim()).filter(Boolean);[m
+[31m-  }[m
+[31m-  function updateTagsParam(tags) {[m
+[31m-    const params = new URLSearchParams(window.location.search);[m
+[31m-    if (tags.length === 0) {[m
+[31m-      params.delete('tags');[m
+[31m-    } else {[m
+[31m-      params.set('tags', tags.join(','));[m
+[31m-    }[m
+[31m-    [m
+[31m-    window.location.search = params.toString() ? ('?' + params.toString()) : '';[m
+[31m-  }[m
+[31m-[m
+[31m-  document.querySelectorAll('.tag-btn').forEach(btn => {[m
+[31m-    btn.addEventListener('click', function (e) {[m
+[31m-      e.preventDefault();[m
+[31m-      const tag = this.getAttribute('data-tag');[m
+[31m-      if (!tag) return;[m
+[31m-      const current = parseTagsParam();[m
+[31m-      const idx = current.indexOf(tag);[m
+[31m-      if (idx === -1) current.push(tag); else current.splice(idx, 1);[m
+[31m-      updateTagsParam(current);[m
+[31m-    });[m
+[31m-  });[m
+[31m-});[m
+\ No newline at end of file[m
+[1mdiff --git a/src/main/resources/templates/edit-note.html b/src/main/resources/templates/edit-note.html[m
+[1mindex 3099051..696515c 100644[m
+[1m--- a/src/main/resources/templates/edit-note.html[m
+[1m+++ b/src/main/resources/templates/edit-note.html[m
+[36m@@ -18,6 +18,7 @@[m
+         Pod:[m
+         <span class="badge bg-warning text-dark" th:text="${podName}">pod-name</span>[m
+       </span>[m
+[32m+[m[32m      <span th:if="${isAdmin}" class="badge bg-info text-dark ms-2">Admin</span>[m
+     </div>[m
+   </div>[m
+ </nav>[m
+[36m@@ -27,6 +28,24 @@[m
+     <div class="card">[m
+       <div class="card-header"><h2 class="text-center">Edit Note</h2></div>[m
+       <div class="card-body">[m
+[32m+[m[32m        <dl th:if="${isAdmin}" class="note-metadata mb-3">[m
+[32m+[m[32m          <div>[m
+[32m+[m[32m            <dt>Note ID</dt>[m
+[32m+[m[32m            <dd th:text="${note.id}">note-id</dd>[m
+[32m+[m[32m          </div>[m
+[32m+[m[32m          <div>[m
+[32m+[m[32m            <dt>User ID</dt>[m
+[32m+[m[32m            <dd th:text="${note.userId}">user-id</dd>[m
+[32m+[m[32m          </div>[m
+[32m+[m[32m          <div>[m
+[32m+[m[32m            <dt>Created</dt>[m
+[32m+[m[32m            <dd th:text="${note.createdAt} ?: 'not recorded'">created</dd>[m
+[32m+[m[32m          </div>[m
+[32m+[m[32m          <div>[m
+[32m+[m[32m            <dt>Updated</dt>[m
+[32m+[m[32m            <dd th:text="${note.updatedAt} ?: 'not recorded'">updated</dd>[m
+[32m+[m[32m          </div>[m
+[32m+[m[32m        </dl>[m
+         <form th:action="@{/notes/update}" method="post">[m
+             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />[m
+             <input type="hidden" name="noteId" th:value="${note.id}" />[m
+[1mdiff --git a/src/main/resources/templates/notekeep.html b/src/main/resources/templates/notekeep.html[m
+[1mindex 2cf0259..77a7f08 100644[m
+[1m--- a/src/main/resources/templates/notekeep.html[m
+[1m+++ b/src/main/resources/templates/notekeep.html[m
+[36m@@ -46,9 +46,6 @@[m
+     <div th:if="${param.logout}">[m
+         <div class="alert alert-success"> You have been logged out.</div>[m
+     </div>[m
+[31m-    <div th:if="${param.oauthError}">[m
+[31m-        <div class="alert alert-danger">Google sign-in failed. Please try again with a different account.</div>[m
+[31m-    </div>[m
+ [m
+     <div class="card">[m
+         <div class="card-header">[m
+[36m@@ -82,19 +79,8 @@[m
+                             placeholder="Enter password"[m
+                     />[m
+                 </div>[m
+[31m-                <div class="form-group mb-3 d-flex align-items-center gap-2">[m
+[31m-                    <button type="submit" class="btn btn-primary flex-grow-1">Submit</button>[m
+[31m-                    <a class="btn btn-outline-secondary d-flex align-items-center justify-content-center"[m
+[31m-                       style="width: 56px; height: 40px;"[m
+[31m-                       th:href="@{/oauth2/authorization/google}"[m
+[31m-                       aria-label="Sign in with Google">[m
+[31m-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 533.5 544.3" width="20" height="20">[m
+[31m-                            <path fill="#4285F4" d="M533.5 278.4c0-17.4-1.6-34.1-4.7-50.2H272v95.0h146.9c-6.3 34-25.1 62.8-53.5 82.1v68.3h86.5c50.6-46.6 81.6-115.3 81.6-195.2z"/>[m
+[31m-                            <path fill="#34A853" d="M272 544.3c72.9 0 134.2-24.1 178.9-65.7l-86.5-68.3c-24 16.1-54.7 25.5-92.4 25.5-70.9 0-131-47.9-152.5-112.3H31.2v70.6c44.6 88.4 136 149.9 240.8 149.9z"/>[m
+[31m-                            <path fill="#FBBC05" d="M119.5 323.5c-10.9-32.6-10.9-68.0 0-100.6V152.3H31.2c-23.8 47.6-31.5 103.7-20.4 158.4s39.4 104.1 79.2 140.7l91.1-70.6z"/>[m
+[31m-                            <path fill="#EA4335" d="M272 107.7c39.6-.6 77.7 14.2 106.6 40.9l79.6-79.6C403.7 24.5 340.5-1 272 0 167.2 0 75.8 61.5 31.2 149.9l88.3 70.6C141 155.9 201.1 108 272 107.7z"/>[m
+[31m-                        </svg>[m
+[31m-                    </a>[m
+[32m+[m[32m                <div class="form-group mb-3">[m
+[32m+[m[32m                    <button type="submit" class="btn btn-primary w-100">Submit</button>[m
+                 </div>[m
+                 <div class="form-group">[m
+                     <span> Not registered ?[m
+[1mdiff --git a/src/main/resources/templates/notes.html b/src/main/resources/templates/notes.html[m
+[1mindex 43b111d..d295b1a 100644[m
+[1m--- a/src/main/resources/templates/notes.html[m
+[1m+++ b/src/main/resources/templates/notes.html[m
+[36m@@ -12,25 +12,46 @@[m
+ <body>[m
+ <nav class="navbar navbar-expand-lg navbar-dark bg-dark">[m
+   <div class="container-fluid">[m
+[31m-    <a class="navbar-brand" th:href="@{/notekeep}">Registration and Login System</a>[m
+[32m+[m[32m    <a class="navbar-brand" th:href="@{/notes}">Registration and Login System</a>[m
+     <div class="collapse navbar-collapse" id="navbarSupportedContent">[m
+       <form th:action="@{/logout}" method="post" class="d-inline">[m
+         <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>[m
+       </form>[m
+[32m+[m[32m      <button id="shutdownBtn" type="button" class="btn btn-outline-danger btn-sm ms-2"[m
+[32m+[m[32m              onclick="shutdownNoteKeep()">Shut Down</button>[m
+       <span class="navbar-text text-light small ms-3">[m
+         Pod:[m
+         <span class="badge bg-warning text-dark" th:text="${podName}">pod-name</span>[m
+       </span>[m
+[32m+[m[32m      <span th:if="${isAdmin}" class="badge bg-info text-dark ms-2">Admin</span>[m
+     </div>[m
+   </div>[m
+ </nav>[m
+ [m
+[31m-<div class="center-wrapper">[m
+[31m-  <div class="card-container">[m
+[32m+[m[32m<div th:if="${isAdmin}" class="page-layout">[m
+[32m+[m[32m  <!-- Users Sidebar -->[m
+[32m+[m[32m  <div class="users-sidebar">[m
+[32m+[m[32m    <h5>Users</h5>[m
+[32m+[m[32m    <ul class="users-list">[m
+[32m+[m[32m      <li class="user-item" th:classappend="${selectedUserId == null} ? 'active' : ''">[m
+[32m+[m[32m        <a th:href="@{/notes(search=${search}, tags=${selectedTags})}">All Users</a>[m
+[32m+[m[32m      </li>[m
+[32m+[m[32m      <li class="user-item" th:each="u : ${allUsers}" th:classappend="${selectedUserId == u.id} ? 'active' : ''">[m
+[32m+[m[32m        <a th:href="@{/notes(filterUserId=${u.id}, search=${search}, tags=${selectedTags})}"[m
+[32m+[m[32m           th:text="${u.firstName} + ' ' + ${u.lastName}">User Name</a>[m
+[32m+[m[32m      </li>[m
+[32m+[m[32m    </ul>[m
+[32m+[m[32m  </div>[m
+[32m+[m
+[32m+[m[32m  <!-- Notes Main Content -->[m
+[32m+[m[32m  <div class="notes-main">[m
+     <div class="card">[m
+       <div class="card-header"><h2 class="text-center">Notes</h2></div>[m
+       <div class="card-body">[m
+[31m-        <a th:href="@{/profile/edit}" style="margin-left: 10px;">Edit Profile</a>[m
+[32m+[m[32m        <div style="margin-left: 10px; margin-bottom: 10px;">[m
+[32m+[m[32m          <a th:href="@{/profile/edit}">Edit Profile</a>[m
+[32m+[m[32m          <a th:if="${isAdmin}" th:href="@{/admin/users}" style="margin-left: 20px;">Manage Users</a>[m
+[32m+[m[32m        </div>[m
+ [m
+         <!-- Search -->[m
+         <form method="get" action="/notes" class="mt-3 mb-2 d-flex">[m
+[36m@@ -39,23 +60,123 @@[m
+         </form>[m
+ [m
+         <!-- Add Note -->[m
+[31m-        <h5>Add Note</h5>[m
+[31m-        <form action="/notes/add" method="post" class="mb-4">[m
+[31m-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />[m
+[31m-            <input type="text" name="title" placeholder="Note Title" required class="form-control mb-2">[m
+[31m-            <textarea id="noteContent" name="content" placeholder="Note Content" required class="form-control mb-2"></textarea>[m
+[31m-[m
+[31m-            <!-- NEW: image upload + detect UI (keeps original form layout) -->[m
+[31m-            <div class="d-flex align-items-center gap-2 mb-2">[m
+[31m-              <input id="imageFile" type="file" accept="image/*" class="form-control-file" />[m
+[31m-              <button id="detectBtn" type="button" class="btn btn-secondary">Detect Text</button>[m
+[31m-            </div>[m
+[31m-[m
+[31m-            <button type="submit" class="btn btn-primary">Add Note</button>[m
+[32m+[m[32m        <div th:if="${!isAdmin}">[m
+[32m+[m[32m          <h5>Add Note</h5>[m
+[32m+[m[32m          <form action="/notes/add" method="post" class="mb-4">[m
+[32m+[m[32m              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />[m
+[32m+[m[32m              <input type="text" name="title" placeholder="Note Title" required class="form-control mb-2">[m
+[32m+[m[32m              <textarea id="noteContent" name="content" placeholder="Note Content" required class="form-control mb-2"></textarea>[m
+[32m+[m
+[32m+[m
+[32m+[m[32m              <button type="submit" class="btn btn-primary">Add Note</button>[m
+[32m+[m[32m          </form>[m
+[32m+[m[32m        </div>[m
+[32m+[m
+[32m+[m[32m        <!-- Notes List -->[m
+[32m+[m[32m        <h5 th:text="${isAdmin} ? 'All Users Notes' : 'All Notes'">All Notes</h5>[m
+[32m+[m
+[32m+[m[32m        <!-- NEW: Hashtag list -->[m
+[32m+[m[32m        <div class="mb-3">[m
+[32m+[m[32m          <strong>Tags:</strong>[m
+[32m+[m[32m          <th:block th:if="${hashtags != null and !#lists.isEmpty(hashtags)}">[m
+[32m+[m[32m            <th:block th:each="tag : ${hashtags}">[m
+[32m+[m[32m              <a href="#" th:attr="data-tag=${tag}"[m
+[32m+[m[32m                 class="btn btn-sm btn-outline-secondary me-1 tag-btn"[m
+[32m+[m[32m                 th:classappend="${selectedTags != null and selectedTags.contains(tag)} ? ' btn-primary' : ''"[m
+[32m+[m[32m                 th:text="${tag}">#tag</a>[m
+[32m+[m[32m            </th:block>[m
+[32m+[m[32m          </th:block>[m
+[32m+[m[32m          <th:block th:if="${hashtags == null || #lists.isEmpty(hashtags)}">[m
+[32m+[m[32m            <span class="text-muted">no tags found</span>[m
+[32m+[m[32m          </th:block>[m
+[32m+[m[32m        </div>[m
+[32m+[m
+[32m+[m[32m        <div class="notes-list">[m
+[32m+[m[32m            <th:block th:each="note : ${notes}">[m
+[32m+[m[32m                <div class="note-item">[m
+[32m+[m[32m                    <div class="d-flex justify-content-between align-items-start">[m
+[32m+[m[32m                        <div>[m
+[32m+[m[32m                            <h6 th:text="${note.title}"></h6>[m
+[32m+[m[32m                            <p th:text="${note.content}"></p>[m
+[32m+[m[32m                            <dl th:if="${isAdmin}" class="note-metadata">[m
+[32m+[m[32m                              <div>[m
+[32m+[m[32m                                <dt>Note ID</dt>[m
+[32m+[m[32m                                <dd th:text="${note.id}">note-id</dd>[m
+[32m+[m[32m                              </div>[m
+[32m+[m[32m                              <th:block th:with="noteUser=${userMap.get(note.userId)}">[m
+[32m+[m[32m                                <div th:if="${noteUser}">[m
+[32m+[m[32m                                  <dt>User Name</dt>[m
+[32m+[m[32m                                  <dd th:text="${noteUser.firstName} + ' ' + ${noteUser.lastName}">user-name</dd>[m
+[32m+[m[32m                                </div>[m
+[32m+[m[32m                                <div th:if="${noteUser}">[m
+[32m+[m[32m                                  <dt>User Email</dt>[m
+[32m+[m[32m                                  <dd th:text="${noteUser.email}">user-email</dd>[m
+[32m+[m[32m                                </div>[m
+[32m+[m[32m                              </th:block>[m
+[32m+[m[32m                              <div>[m
+[32m+[m[32m                                <dt>User ID</dt>[m
+[32m+[m[32m                                <dd th:text="${note.userId}">user-id</dd>[m
+[32m+[m[32m                              </div>[m
+[32m+[m[32m                              <div>[m
+[32m+[m[32m                                <dt>Created</dt>[m
+[32m+[m[32m                                <dd th:text="${note.createdAt} ?: 'not recorded'">created</dd>[m
+[32m+[m[32m                              </div>[m
+[32m+[m[32m                              <div>[m
+[32m+[m[32m                                <dt>Updated</dt>[m
+[32m+[m[32m                                <dd th:text="${note.updatedAt} ?: 'not recorded'">updated</dd>[m
+[32m+[m[32m                              </div>[m
+[32m+[m[32m                            </dl>[m
+[32m+[m[32m                        </div>[m
+[32m+[m[32m                        <div class="d-flex gap-2">[m
+[32m+[m[32m                            <a th:href="@{|/notes/${note.id}/edit|}" class="btn btn-sm btn-outline-primary">Edit</a>[m
+[32m+[m[32m                            <form th:if="${!isAdmin || note.userId == currentUserId}" th:action="@{/notes/delete}" method="post" style="display:inline">[m
+[32m+[m[32m                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />[m
+[32m+[m[32m                                <input type="hidden" name="noteId" th:value="${note.id}" />[m
+[32m+[m[32m                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>[m
+[32m+[m[32m                            </form>[m
+[32m+[m[32m                        </div>[m
+[32m+[m[32m                    </div>[m
+[32m+[m[32m                </div>[m
+[32m+[m[32m            </th:block>[m
+[32m+[m[32m        </div>[m
+[32m+[m
+[32m+[m[32m      </div>[m
+[32m+[m[32m    </div>[m
+[32m+[m[32m  </div>[m
+[32m+[m[32m</div>[m
+[32m+[m
+[32m+[m[32m<!-- Non-admin layout -->[m
+[32m+[m[32m<div th:if="${!isAdmin}" class="center-wrapper">[m
+[32m+[m[32m  <div class="card-container">[m
+[32m+[m[32m    <div class="card">[m
+[32m+[m[32m      <div class="card-header"><h2 class="text-center">Notes</h2></div>[m
+[32m+[m[32m      <div class="card-body">[m
+[32m+[m[32m        <div style="margin-left: 10px; margin-bottom: 10px;">[m
+[32m+[m[32m          <a th:href="@{/profile/edit}">Edit Profile</a>[m
+[32m+[m[32m          <a th:if="${isAdmin}" th:href="@{/admin/users}" style="margin-left: 20px;">Manage Users</a>[m
+[32m+[m[32m        </div>[m
+[32m+[m
+[32m+[m[32m        <!-- Search -->[m
+[32m+[m[32m        <form method="get" action="/notes" class="mt-3 mb-2 d-flex">[m
+[32m+[m[32m            <input type="text" name="search" placeholder="Search notes" th:value="${search}" class="form-control me-2">[m
+[32m+[m[32m            <button type="submit" class="btn btn-primary">Search</button>[m
+         </form>[m
+ [m
+[32m+[m[32m        <!-- Add Note -->[m
+[32m+[m[32m        <div th:if="${!isAdmin}">[m
+[32m+[m[32m          <h5>Add Note</h5>[m
+[32m+[m[32m          <form action="/notes/add" method="post" class="mb-4">[m
+[32m+[m[32m              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />[m
+[32m+[m[32m              <input type="text" name="title" placeholder="Note Title" required class="form-control mb-2">[m
+[32m+[m[32m              <textarea id="noteContent" name="content" placeholder="Note Content" required class="form-control mb-2"></textarea>[m
+[32m+[m
+[32m+[m
+[32m+[m[32m              <button type="submit" class="btn btn-primary">Add Note</button>[m
+[32m+[m[32m          </form>[m
+[32m+[m[32m        </div>[m
+[32m+[m
+         <!-- Notes List -->[m
+[31m-        <h5>All Notes</h5>[m
+[32m+[m[32m        <h5 th:text="${isAdmin} ? 'All Users Notes' : 'All Notes'">All Notes</h5>[m
+ [m
+         <!-- NEW: Hashtag list -->[m
+         <div class="mb-3">[m
+[36m@@ -80,10 +201,38 @@[m
+                         <div>[m
+                             <h6 th:text="${note.title}"></h6>[m
+                             <p th:text="${note.content}"></p>[m
+[32m+[m[32m                            <dl th:if="${isAdmin}" class="note-metadata">[m
+[32m+[m[32m                              <div>[m
+[32m+[m[32m                                <dt>Note ID</dt>[m
+[32m+[m[32m                                <dd th:text="${note.id}">note-id</dd>[m
+[32m+[m[32m                              </div>[m
+[32m+[m[32m                              <th:block th:with="noteUser=${userMap.get(note.userId)}">[m
+[32m+[m[32m                                <div th:if="${noteUser}">[m
+[32m+[m[32m                                  <dt>User Name</dt>[m
+[32m+[m[32m                                  <dd th:text="${noteUser.firstName} + ' ' + ${noteUser.lastName}">user-name</dd>[m
+[32m+[m[32m                                </div>[m
+[32m+[m[32m                                <div th:if="${noteUser}">[m
+[32m+[m[32m                                  <dt>User Email</dt>[m
+[32m+[m[32m                                  <dd th:text="${noteUser.email}">user-email</dd>[m
+[32m+[m[32m                                </div>[m
+[32m+[m[32m                              </th:block>[m
+[32m+[m[32m                              <div>[m
+[32m+[m[32m                                <dt>User ID</dt>[m
+[32m+[m[32m                                <dd th:text="${note.userId}">user-id</dd>[m
+[32m+[m[32m     

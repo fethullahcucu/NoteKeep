@@ -6,6 +6,72 @@ body { background: #2e7d32; color: #0b2b0b; -webkit-font-smoothing: antialiased;
 :root { --navbar-height: 56px; }
 .navbar { height: var(--navbar-height); min-height: var(--navbar-height); }
 
+/* Two-column admin layout */
+.page-layout {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  min-height: calc(100vh - var(--navbar-height));
+  box-sizing: border-box;
+}
+
+.users-sidebar {
+  flex: 0 0 220px;
+  overflow-y: auto;
+  background: #f8f9f4;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  border: 1px solid rgba(0,0,0,0.06);
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.users-sidebar h5 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #1b5e20;
+  font-weight: 700;
+}
+
+.users-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.user-item {
+  margin-bottom: 8px;
+}
+
+.user-item a {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #334;
+  text-decoration: none;
+  border: 1px solid #cfe8d8;
+  transition: all 0.2s ease;
+}
+
+.user-item a:hover {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.user-item.active a {
+  background: #1b5e20;
+  color: #ffffff;
+  border-color: #134b18;
+}
+
+.notes-main {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Centering wrapper */
 .center-wrapper {
   display: flex;
@@ -46,12 +112,40 @@ body { background: #2e7d32; color: #0b2b0b; -webkit-font-smoothing: antialiased;
 .note-item { padding: 12px; border-radius: 6px; background: #ffffffee; margin-bottom: 10px; border: 1px solid rgba(0,0,0,0.05); }
 .note-item h6 { margin: 0 0 6px 0; }
 .note-item p { margin: 0 0 6px 0; color: #334; }
+.note-metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 10px 0 0;
+  padding: 10px;
+  border-radius: 6px;
+  background: #eef7ef;
+  border: 1px solid #cfe8d8;
+  font-size: 0.85rem;
+}
+.note-metadata div { min-width: 0; }
+.note-metadata dt { font-weight: 700; color: #1b5e20; }
+.note-metadata dd { margin: 0; overflow-wrap: anywhere; color: #334; }
 
 /* Buttons */
 .btn-primary { background-color: #1b5e20; border-color: #134b18; color: #fff; }
 
 /* Responsive */
 @media (max-width: 768px) {
+  /* Admin layout: stack sidebar above notes */
+  .page-layout {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .users-sidebar {
+    flex: 0 1 auto;
+    position: static;
+    height: auto;
+    max-height: 300px;
+  }
+
   .card-container { max-width: 92%; }
   .card { padding: 16px; }
+  .note-metadata { grid-template-columns: 1fr; }
 }

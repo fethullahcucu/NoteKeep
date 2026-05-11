@@ -22,6 +22,10 @@ public class NoteService {
         return noteRepository.findByUserId(userId);
     }
 
+    public List<Note> getAllNotes() {
+        return noteRepository.findAll();
+    }
+
     public List<Note> searchNotes(String keyword, String userId) {
         if (userId == null || userId.isBlank()) {
             return Collections.emptyList();
@@ -30,6 +34,13 @@ public class NoteService {
             return getNotesForUser(userId);
         }
         return noteRepository.searchByUserIdAndKeyword(userId, keyword.trim());
+    }
+
+    public List<Note> searchAllNotes(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return getAllNotes();
+        }
+        return noteRepository.searchByKeyword(keyword.trim());
     }
 
     public void addNote(Note note) {
@@ -47,6 +58,13 @@ public class NoteService {
                 .filter(note -> userId.equals(note.getUserId()));
     }
 
+    public Optional<Note> getNoteById(String noteId) {
+        if (noteId == null || noteId.isBlank()) {
+            return Optional.empty();
+        }
+        return noteRepository.findById(noteId);
+    }
+
     public boolean deleteNoteForUser(String noteId, String userId) {
         Optional<Note> noteOpt = getNoteByIdForUser(noteId, userId);
         if (noteOpt.isEmpty()) {
@@ -62,6 +80,27 @@ public class NoteService {
         }
 
         Optional<Note> noteOpt = getNoteByIdForUser(noteId, userId);
+        if (noteOpt.isEmpty()) {
+            return false;
+        }
+
+        Note note = noteOpt.get();
+        if (title != null) {
+            note.setTitle(title.trim());
+        }
+        if (content != null) {
+            note.setContent(content.trim());
+        }
+        noteRepository.save(note);
+        return true;
+    }
+
+    public boolean updateNoteAsAdmin(String noteId, String title, String content) {
+        if (noteId == null || noteId.isBlank()) {
+            return false;
+        }
+
+        Optional<Note> noteOpt = noteRepository.findById(noteId);
         if (noteOpt.isEmpty()) {
             return false;
         }
